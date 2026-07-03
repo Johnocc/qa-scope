@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hanbit-life.example/schemas/consult-eval-output/v1.json",
+  "title": "보험 상담 AI 채점 출력 스키마 v1",
+  "description": "claude.md(평가 프롬프트)가 상담 1건을 채점해 반환하는 JSON. 루브릭 v1.5 / N_A_매핑규칙_확정본 / 한빛생명_니즈상품_매칭표_v1.0 기준. ※ '집계' 블록은 AI가 채우더라도 애플리케이션이 항목평가에서 결정론적으로 재계산할 것(LLM 산수 미신뢰).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "상담ID",
+    "분류",
+    "항목평가",
+    "위험플래그",
+    "집계",
+    "요약",
+    "종합피드백"
+  ],
+  "properties": {
+    "상담ID": {
+      "type": [
+        "string",
+        "integer"
+      ],
+      "description": "채점 대상 상담의 식별자(상담 마스터 PK). 입력값을 그대로 에코."
+    },
+    "평가메타": {
+      "type": "object",
+      "description": "보통 애플리케이션이 주입(모델명·시각은 모델이 신뢰성 있게 알지 못함). AI가 비워도 됨.",
+      "additionalProperties": false,
+      "properties": {
+        "평가주체": {
+          "type": "string",
+          "enum": [
+            "AI_1차",
+            "모니터링_AI",
+            "사람_골든셋"
+          ]
+        },
+        "AI모델": {
+          "type": "string",
+          "description": "예: claude-opus-4-8"
+        },
+        "루브릭버전": {
+          "type": "string",
+          "description": "예: v1.5"
+        },
+        "평가일시": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "분류": {
+      "type": "object",
+      "description": "채점 직전 ①.5 단계. 유형은 힌트일 뿐, N/A의 실제 트리거는 권유유형(2단계).",
+      "additionalProperties": false,
+      "required": [
+        "상담유형",
+        "권유유형"
+      ],
+      "properties": {
+        "상담유형": {
+          "type": "string",
+          "enum": [
+            "신규·보장",
+            "계약변경",
+            "해지·환급",
+            "보험금청구",
+            "단순문의"
+          ]
+        },
+        "유형근거": {
+          "type": "string"
+        },
+        "권유유형": {
+          "type": "string",
+          "enum": [
+            "없음",
+            "신규판매",
+            "유지·해지방어·승환"
+          ],
+          "description": "이 상담에 어떤 권유가 있었나(N/A 2단계 트리거의 실제 스위치). ▸없음: D1~D6 전부 N/A ▸신규판매: D1~D6 전부 적용 + 판매정보 채움 ▸유지·해지방어·승환: D1~D5는 N/A, D6만 적용(판매정보 null). 신규판매와 유지권유가 동시면 '신규판매' 선택(어차피 D6도 ON)."
+        },
+        "권유근거": {
+          "type": "string"
+        }
+      }
+    },
+    "판매정보": {
+      "description": "권유유형=신규판매일 때만 객체로 채움. 그 외(없음·유지·해지방어·승환)는 null. D2 채점·위험플래그6의 근거.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "권유상품코드",
+            "매칭판정",
+            "확인절차"
+          ],
+          "properties": {
+            "권유상품코드": {
+              "type": "string",
+              "enum": [
+                "P1",
+                "P2",
+                "P3",
+                "P4",
+                "P5",
+                "P6",
+                "P7"
+              ],
+              "description": "한빛생명 7종(P1종신/P2정기/P3저축/P4연금/P5변액/P6건강/P7어린이)"
+            },
+            "권유상품명": {
+              "type": "string"
+            },
+            "니즈시나리오코드": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "N1",
+                "N2",
+                "N3",
+                "N4",
+                "N5",
+                "N6",
+                "N7",
+                "N8",
+                null
+              ],
+              "description": "매칭표의 고객 니즈 시나리오. 판단 불가 시 null."
+            },
+            "매칭판정": {
+              "type": "string",
+              "enum": [
+                "적합",
+                "부적합",
+                "명백한 오류"
+              ],
+              "description": "상품-니즈 적합도(결과 축). ★D2 점수는 매칭판정 단독이 아니라 확인절차(가입목적·재정상황·기존계약 중 확인한 개수)와 3×3 게이트로 조합. [적합] 3개→충족5 / 1~2개→부분2.5 / 0개→미충족0(우연히 적합은 인정 안 함). [부적합] 3개·1~2개→부분2.5 / 0개→미충족0. [명백한 오류] 확인개수 무관 미충족0 + 위험플래그6. 실제 D2 점수·근거는 항목평가[D2]에 기록."
+            },
+            "확인절차": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "D2 절차축. 상담사가 해당 절차를 확인했으면 true. 앱이 true 개수를 세어 3×3 게이트 적용(3개/1~2개/0개). 왜 그렇게 판단했는지 근거는 항목평가[D2].근거에 서술(중복 방지).",
+              "required": [
+                "가입목적",
+                "재정상황",
+                "기존계약"
+              ],
+              "properties": {
+                "가입목적": {
+                  "type": "boolean"
+                },
+                "재정상황": {
+                  "type": "boolean"
+                },
+                "기존계약": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "판정근거": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "항목평가": {
+      "type": "array",
+      "description": "루브릭 18개 항목 전부. 적용 안 되는 항목은 삭제하지 말고 충족수준='해당없음'으로.",
+      "minItems": 18,
+      "maxItems": 18,
+      "items": {
+        "$ref": "#/$defs/항목"
+      }
+    },
+    "위험플래그": {
+      "type": "array",
+      "description": "감지된 플래그만. 없으면 빈 배열.",
+      "items": {
+        "$ref": "#/$defs/플래그"
+      }
+    },
+    "집계": {
+      "type": "object",
+      "description": "AI 참고값. 애플리케이션이 항목평가에서 재계산해 덮어쓸 것.",
+      "additionalProperties": false,
+      "required": [
+        "원점수합",
+        "적용배점합",
+        "환산총점",
+        "위험표시여부",
+        "상태라벨"
+      ],
+      "properties": {
+        "원점수합": {
+          "type": "number",
+          "description": "충족수준이 해당없음이 아닌 항목들의 획득점수 합."
+        },
+        "적용배점합": {
+          "type": "number",
+          "description": "100 - (해당없음 항목 배점의 합) = 환산 분모."
+        },
+        "환산총점": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "round((원점수합 / 적용배점합) * 100, 1)."
+        },
+        "위험표시여부": {
+          "type": "boolean",
+          "description": "위험플래그 배열이 1개 이상이면 true → 목록 화면에 빨간 위험 아이콘 표시. 플래그 3·4(B1오정보·C3민원)만 있어 상태라벨이 '정상'이어도 true가 되어 위험행으로 노출됨(초록불에 묻히지 않게)."
+        },
+        "상태라벨": {
+          "type": "string",
+          "enum": [
+            "정상",
+            "불완전판매 의심",
+            "저점수"
+          ],
+          "description": "분류 텍스트(위험표시여부와 별개 역할). 위험플래그 1·2·5·6 중 하나라도→불완전판매 의심 / 환산총점<70→저점수 / 그 외→정상. 둘 다 해당 시 우선순위: 불완전판매 의심 > 저점수 > 정상."
+        }
+      }
+    },
+    "고객만족": {
+      "type": "object",
+      "description": "상담사 평가와 별개로 고객 반응 분석. 등급/점수 중 운영에서 쓰는 쪽 채움.",
+      "additionalProperties": false,
+      "properties": {
+        "등급": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "매우 불만족",
+            "불만족",
+            "보통",
+            "만족",
+            "매우 만족",
+            null
+          ]
+        },
+        "점수": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "근거": {
+          "type": "string"
+        }
+      }
+    },
+    "요약": {
+      "type": "string",
+      "description": "상담 핵심 1~3문장 요약."
+    },
+    "종합피드백": {
+      "type": "string",
+      "description": "점수가 아닌 개선 조언·지적."
+    }
+  },
+  "$defs": {
+    "근거": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "대화ID",
+        "인용문"
+      ],
+      "properties": {
+        "대화ID": {
+          "type": [
+            "string",
+            "integer"
+          ],
+          "description": "근거가 된 발화의 상세 대화 내역 PK. '점수 클릭→텍스트 점프'의 연결고리."
+        },
+        "인용문": {
+          "type": "string",
+          "description": "원문 그대로 인용(요약·각색 금지)."
+        }
+      }
+    },
+    "항목": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "항목코드",
+        "충족수준",
+        "배점",
+        "획득점수",
+        "근거"
+      ],
+      "properties": {
+        "항목코드": {
+          "type": "string",
+          "enum": [
+            "A1",
+            "A2",
+            "A3",
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "C1",
+            "C2",
+            "C3",
+            "D1",
+            "D2",
+            "D3",
+            "D4",
+            "D5",
+            "D6",
+            "E1",
+            "E2"
+          ]
+        },
+        "충족수준": {
+          "type": "string",
+          "enum": [
+            "충족",
+            "부분충족",
+            "미충족",
+            "해당없음"
+          ]
+        },
+        "배점": {
+          "type": "number",
+          "description": "루브릭 v1.5 고정값: A1·A2·A3=4 / B1=8,B2·B3·B4=6 / C1·C2·C3=6 / D1=7,D2=5,D3=5,D4=4,D5=4,D6=5 / E1·E2=7. 합 100."
+        },
+        "획득점수": {
+          "type": "number",
+          "minimum": 0,
+          "description": "충족=배점, 부분충족=배점/2, 미충족=0, 해당없음=0(단 적용배점합에서 배점 제외). 앱에서 충족수준과 정합성 검증."
+        },
+        "근거": {
+          "type": "array",
+          "description": "인용 근거. 충족수준=해당없음이면 빈 배열 허용, 그 외에는 1개 이상 권장.",
+          "items": {
+            "$ref": "#/$defs/근거"
+          }
+        },
+        "코멘트": {
+          "type": "string",
+          "description": "해당 항목에 대한 짧은 판정 사유."
+        }
+      }
+    },
+    "플래그": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "규칙번호",
+        "근거"
+      ],
+      "properties": {
+        "규칙번호": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6,
+          "description": "1=D6위반 / 2=D1핵심누락(단 저축성·종신 등 원금손실이 실재하는 상품만; 건강보험 등 보장성 제외; D1 미충족이 자동으로 규칙2를 켜지 않음) / 3=B1오정보 / 4=C3미충족+강한불만 / 5=D영역<50%(★단 D1~D5가 적용된 신규판매 상담에서만 평가. D가 전부 N/A면 분모 0이라 규칙5 건너뜀) / 6=D2 명백한 오류"
+        },
+        "관련항목코드": {
+          "type": "string",
+          "enum": [
+            "A1",
+            "A2",
+            "A3",
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "C1",
+            "C2",
+            "C3",
+            "D1",
+            "D2",
+            "D3",
+            "D4",
+            "D5",
+            "D6",
+            "E1",
+            "E2"
+          ]
+        },
+        "근거": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
