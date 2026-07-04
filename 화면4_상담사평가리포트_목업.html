@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>화면④ 상담사 개인 평가 리포트 — 목업</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f4ee;
+    --card:#ffffff;
+    --border:#e7e2d3;
+    --text:#2b2a26;
+    --sub:#8a8578;
+    --accent:#2b2a26;
+    --danger-bg:#f8e9e7;
+    --danger-text:#b5473f;
+    --warn-bg:#f5eedb;
+    --warn-text:#a9822f;
+    --ok-bg:#eef1e2;
+    --ok-text:#7a8450;
+    --team-line:#b7b2a0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:28px;
+  }
+  .shell{max-width:1080px;margin:0 auto;background:var(--bg);}
+  .mock-banner{
+    background:#fff3cd;border:1px solid #f0e0a0;color:#7a5c00;
+    font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:16px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:20px 24px;
+  }
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .tab{
+    padding:9px 16px;border-radius:999px;font-size:14px;color:var(--sub);
+    border:1px solid transparent;cursor:default;
+  }
+  .tab.active{background:var(--text);color:#fff;font-weight:600;}
+  .tab.new{border:1px solid var(--text);color:var(--text);font-weight:600;}
+
+  .topbar{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    margin-bottom:18px;gap:16px;flex-wrap:wrap;
+  }
+  .breadcrumb{font-size:13px;color:var(--sub);margin-bottom:4px;}
+  .title-row{display:flex;align-items:center;gap:10px;}
+  .title-row h1{font-size:22px;margin:0;}
+  .badge-agent{
+    font-size:12px;background:var(--warn-bg);color:var(--warn-text);
+    padding:3px 10px;border-radius:999px;font-weight:600;
+  }
+  .actions{display:flex;gap:8px;align-items:center;}
+  .btn{
+    border:1px solid var(--border);background:#fff;color:var(--text);
+    padding:9px 14px;border-radius:10px;font-size:13px;cursor:pointer;
+  }
+  .btn.primary{background:var(--text);color:#fff;border-color:var(--text);font-weight:600;}
+  select.filter{
+    border:1px solid var(--border);background:#fff;border-radius:10px;
+    padding:8px 12px;font-size:13px;color:var(--text);
+  }
+
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;}
+  .stat-card .label{font-size:12px;color:var(--sub);margin-bottom:6px;}
+  .stat-card .value{font-size:26px;font-weight:700;}
+  .stat-card .value.danger{color:var(--danger-text);}
+  .stat-card .sub{font-size:12px;color:var(--sub);margin-top:4px;}
+
+  .main-grid{display:grid;grid-template-columns:380px 1fr;gap:16px;margin-bottom:16px;align-items:stretch;}
+  @media (max-width:860px){.main-grid{grid-template-columns:1fr;} .stat-grid{grid-template-columns:repeat(2,1fr);}}
+
+  .section-title{font-size:15px;font-weight:700;margin:0 0 4px 0;}
+  .section-sub{font-size:12px;color:var(--sub);margin:0 0 14px 0;}
+
+  .legend-row{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-top:10px;}
+  .legend-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;}
+
+  .improve-box{
+    background:var(--danger-bg);border:1px solid #edcfcb;border-radius:14px;
+    padding:16px 18px;margin-bottom:16px;
+  }
+  .improve-box h2{font-size:14px;margin:0 0 10px 0;color:var(--danger-text);}
+  .improve-item{
+    display:flex;justify-content:space-between;gap:14px;padding:10px 0;
+    border-top:1px solid #edd9d5;
+  }
+  .improve-item:first-of-type{border-top:none;}
+  .improve-item .code{
+    font-size:12px;font-weight:700;color:var(--danger-text);
+    background:#fff;border:1px solid #edcfcb;border-radius:6px;padding:2px 7px;margin-right:8px;
+  }
+  .improve-item .name{font-size:13px;font-weight:600;}
+  .improve-item .tip{font-size:12px;color:#7a4a44;margin-top:3px;}
+  .improve-item .rate{font-size:13px;font-weight:700;color:var(--danger-text);white-space:nowrap;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{
+    text-align:left;color:var(--sub);font-weight:600;font-size:11px;
+    text-transform:uppercase;letter-spacing:.02em;
+    padding:8px 10px;border-bottom:1px solid var(--border);
+  }
+  td{padding:9px 10px;border-bottom:1px solid #f0ede3;vertical-align:middle;}
+  tr.domain-row td{
+    background:#faf9f4;font-weight:700;font-size:12px;color:var(--sub);
+    padding-top:14px;
+  }
+  .item-name{font-weight:600;}
+  .item-code{color:var(--sub);font-size:12px;margin-right:6px;}
+  .bar-wrap{width:120px;height:7px;background:#eee9db;border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px;}
+  .bar-fill{height:100%;border-radius:99px;}
+  .status-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .status-ok{background:var(--ok-bg);color:var(--ok-text);}
+  .status-mid{background:var(--warn-bg);color:var(--warn-text);}
+  .status-bad{background:var(--danger-bg);color:var(--danger-text);}
+
+  .footnote{font-size:11px;color:var(--sub);margin-top:18px;line-height:1.6;}
+
+  @media print{
+    body{background:#fff;padding:0;}
+    .mock-banner,.tabs,.actions,.btn{display:none !important;}
+    .card,.stat-card,.improve-box{border:1px solid #ddd;}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="mock-banner">⚠ 목업(가상 데이터) — 1단계 준비 작업물입니다. 엔진 실제 JSON 연동은 3단계에서 진행합니다. (기준: 상담평가_출력스키마 ver2 / 루브릭 v1.5)</div>
+
+  <div class="tabs">
+    <div class="tab">채점 결과 목록</div>
+    <div class="tab">채점 상세</div>
+    <div class="tab">상담사별 대시보드</div>
+    <div class="tab new active">개인 평가 리포트 (화면④)</div>
+  </div>
+
+  <div class="topbar">
+    <div>
+      <div class="breadcrumb">상담사별 대시보드 › 개인 리포트</div>
+      <div class="title-row">
+        <h1>김상담</h1>
+        <span class="badge-agent">약점: 불완전판매 고지(D영역)</span>
+      </div>
+    </div>
+    <div class="actions">
+      <select class="filter"><option>최근 30일</option><option>최근 90일</option><option>전체 기간</option></select>
+      <button class="btn">코멘트 남기기</button>
+      <button class="btn primary" onclick="window.print()">⬇ PDF로 저장</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="label">채점 건수</div>
+      <div class="value">145</div>
+      <div class="sub">전체 1,000건 중</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">평균 점수</div>
+      <div class="value">73.6</div>
+      <div class="sub">팀 평균 82.4 대비 -8.8</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">위험 건</div>
+      <div class="value danger">4</div>
+      <div class="sub">전체 위험 12건 중</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">팀 내 순위</div>
+      <div class="value">4 / 4</div>
+      <div class="sub">상담사 4명 중 최하위</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="card">
+      <p class="section-title">영역별 스파이더 차트</p>
+      <p class="section-sub">5개 영역(A~E) 획득률 · 팀 평균과 비교</p>
+      <canvas id="radarChart" height="260"></canvas>
+      <div class="legend-row">
+        <span><span class="legend-dot" style="background:#b5473f"></span>김상담</span>
+        <span><span class="legend-dot" style="background:#b7b2a0"></span>팀 평균</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">개선 필요 항목</p>
+      <p class="section-sub">달성률 60% 미만 · 점수 낮은 순</p>
+      <div class="improve-box" style="margin-bottom:10px;">
+        <div class="improve-item">
+          <div>
+            <span class="code">D2</span><span class="name">적합성 원칙(절차+결과)</span>
+            <div class="tip">가입목적·재정상황·기존계약 확인 절차 누락이 반복됨. 권유 전 3대 확인 습관화 필요.</div>
+          </div>
+          <div class="rate">42%</div>
+        </div>
+        <div class="improve-item">
+          <div>
+            <span class="code">D4</span><span class="name">면책·부지급 사유 설명</span>
+            <div class="tip">언급은 하나 중요성을 축소해 설명하는 경향. 명확한 강조 표현으로 코칭 필요.</div>
+          </div>
+          <div class="rate">45%</div>
+        </div>
+        <div class="improve-item">
+          <div>
+            <span class="code">D1</span><span class="name">중요사항 설명의무</span>
+            <div class="tip">보장내용 세부범주(진단비·수술비 등) 설명 누락 빈도 높음. 체크리스트 활용 권장.</div>
+          </div>
+          <div class="rate">50%</div>
+        </div>
+      </div>
+      <p class="section-sub" style="margin-top:14px;">💡 세 항목 모두 D영역(불완전판매 방지) — 코칭 우선순위 1순위로 연결</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="section-title">항목별 상세 (18개)</p>
+    <p class="section-sub">클릭 시 해당 상담 근거 발화로 이동(3단계 연동 예정) · 배점 기준 루브릭 v1.5</p>
+    <table>
+      <thead>
+        <tr><th>항목</th><th>배점</th><th>평균 획득</th><th>달성률</th><th>상태</th></tr>
+      </thead>
+      <tbody id="itemTable"></tbody>
+    </table>
+  </div>
+
+  <p class="footnote">
+    * 본 화면은 CLAUDE.md 9장 사양(스파이더 차트 + 항목별 상세 + 개선 필요 항목 + PDF 버튼) 기준 목업이며, 수치는 임의 예시입니다.<br>
+    * 실제 연동 시 데이터 출처: <code>상담평가_출력스키마_ver2.json</code>의 항목평가(18개)·집계 블록, 항목명·배점은 <code>보험상담_평가루브릭_v1_5.md</code> 기준.<br>
+    * PDF 버튼은 브라우저 인쇄(Ctrl/Cmd+P) 기반 임시 구현이며, 3단계에서 별도 PDF 생성 라이브러리 적용 여부 검토.
+  </p>
+</div>
+
+<script>
+const items = [
+  {domain:"A. 상담 도입", items:[
+    {code:"A1", name:"맞이인사 및 소속·성명 밝히기", max:4, score:3.7},
+    {code:"A2", name:"고객 본인확인", max:4, score:3.6},
+    {code:"A3", name:"경청 및 용건·니즈 파악", max:4, score:3.6},
+  ]},
+  {domain:"B. 업무처리", items:[
+    {code:"B1", name:"정보 정확성", max:8, score:6.5},
+    {code:"B2", name:"쉬운 설명", max:6, score:4.8},
+    {code:"B3", name:"적극적 해결·대안 제시", max:6, score:4.9},
+    {code:"B4", name:"신속·효율적 처리", max:6, score:4.8},
+  ]},
+  {domain:"C. 태도·공감", items:[
+    {code:"C1", name:"공감 표현", max:6, score:4.4},
+    {code:"C2", name:"친절·언어예절", max:6, score:5.1},
+    {code:"C3", name:"감정 대응", max:6, score:4.5},
+  ]},
+  {domain:"D. 보험특화(불완전판매 방지)", items:[
+    {code:"D1", name:"중요사항 설명의무", max:7, score:3.5},
+    {code:"D2", name:"적합성 원칙(절차+결과)", max:5, score:2.1},
+    {code:"D3", name:"고지의무 안내", max:5, score:3.2},
+    {code:"D4", name:"면책·부지급 사유 설명", max:4, score:1.8},
+    {code:"D5", name:"청약철회·해피콜 안내", max:4, score:2.6},
+    {code:"D6", name:"허위·과장 및 부당권유 금지", max:5, score:4.2},
+  ]},
+  {domain:"E. 상담 마무리", items:[
+    {code:"E1", name:"처리내용 재확인·이해 점검", max:7, score:5.4},
+    {code:"E2", name:"종료 인사·추가 안내", max:7, score:4.9},
+  ]},
+];
+
+function statusOf(rate){
+  if(rate < 60) return {cls:"status-bad", label:"개선 필요", color:"#b5473f"};
+  if(rate < 80) return {cls:"status-mid", label:"보통", color:"#a9822f"};
+  return {cls:"status-ok", label:"양호", color:"#7a8450"};
+}
+
+const tbody = document.getElementById("itemTable");
+items.forEach(group=>{
+  const domainTr = document.createElement("tr");
+  domainTr.className = "domain-row";
+  domainTr.innerHTML = `<td colspan="5">${group.domain}</td>`;
+  tbody.appendChild(domainTr);
+  group.items.forEach(it=>{
+    const rate = Math.round((it.score/it.max)*1000)/10;
+    const st = statusOf(rate);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="item-code">${it.code}</span><span class="item-name">${it.name}</span></td>
+      <td>${it.max}</td>
+      <td>${it.score.toFixed(1)}</td>
+      <td>
+        <span class="bar-wrap"><span class="bar-fill" style="width:${rate}%;background:${st.color}"></span></span>
+        ${rate}%
+      </td>
+      <td><span class="status-pill ${st.cls}">${st.label}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+});
+
+const domainStats = items.map(g=>{
+  const max = g.items.reduce((a,b)=>a+b.max,0);
+  const score = g.items.reduce((a,b)=>a+b.score,0);
+  return {label:g.domain.split(".")[0], rate: Math.round((score/max)*1000)/10};
+});
+const teamAvg = {A:92,B:85,C:84,D:73,E:86};
+
+new Chart(document.getElementById('radarChart'), {
+  type: 'radar',
+  data: {
+    labels: domainStats.map(d=>d.label+"영역"),
+    datasets: [
+      {
+        label: '김상담',
+        data: domainStats.map(d=>d.rate),
+        borderColor: '#b5473f',
+        backgroundColor: 'rgba(181,71,63,0.15)',
+        pointBackgroundColor: '#b5473f',
+        borderWidth: 2,
+      },
+      {
+        label: '팀 평균',
+        data: domainStats.map(d=>teamAvg[d.label]),
+        borderColor: '#b7b2a0',
+        backgroundColor: 'rgba(183,178,160,0.12)',
+        pointBackgroundColor: '#b7b2a0',
+        borderWidth: 2,
+        borderDash: [4,3],
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      r: {
+        min: 0, max: 100,
+        ticks: { stepSize: 20, backdropColor: 'transparent', color:'#8a8578', font:{size:10} },
+        grid: { color: '#e7e2d3' },
+        angleLines: { color: '#e7e2d3' },
+        pointLabels: { color: '#2b2a26', font:{ size: 11, weight:'600' } }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
