@@ -1,0 +1,60 @@
+{
+  "_comment": "화면④ 상담사 리포트 API 예시 응답. 수치는 프론트 목업(화면4_상담사평가리포트_목업.html, 김상담)과 동일하게 맞춤. 프론트 개발 시 스텁으로 사용 가능.",
+  "meta": {
+    "agent_id": "AG-003",
+    "agent_name": "김상담",
+    "period": "30d",
+    "period_from": "2026-06-05",
+    "period_to": "2026-07-05",
+    "generated_at": "2026-07-05T19:30:00+09:00",
+    "rubric_version": "v1.5",
+    "thresholds": { "item_rate_warn": 60, "item_rate_ok": 80 }
+  },
+  "summary": {
+    "evaluation_count": 145,
+    "total_evaluation_count": 1000,
+    "avg_score": 73.6,
+    "team_avg_score": 82.4,
+    "risk_count": 4,
+    "total_risk_count": 12,
+    "rank": 4,
+    "agent_count": 4,
+    "weak_domain": {
+      "domain_code": "D",
+      "domain_name": "보험특화(불완전판매 방지)",
+      "label": "불완전판매 고지"
+    }
+  },
+  "domain_rates": [
+    { "domain_code": "A", "domain_name": "상담 도입", "rate": 90.8, "team_rate": 92.0, "applied_count": 145 },
+    { "domain_code": "B", "domain_name": "업무처리", "rate": 80.8, "team_rate": 85.0, "applied_count": 145 },
+    { "domain_code": "C", "domain_name": "태도·공감", "rate": 77.8, "team_rate": 84.0, "applied_count": 145 },
+    { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "rate": 58.0, "team_rate": 73.0, "applied_count": 52 },
+    { "domain_code": "E", "domain_name": "상담 마무리", "rate": 73.6, "team_rate": 86.0, "applied_count": 145 }
+  ],
+  "items": [
+    { "item_code": "A1", "item_name": "맞이인사 및 소속·성명 밝히기", "domain_code": "A", "max_score": 4, "applied_count": 145, "na_count": 0, "avg_earned": 3.7, "rate": 92.5, "status": "양호" },
+    { "item_code": "A2", "item_name": "고객 본인확인", "domain_code": "A", "max_score": 4, "applied_count": 139, "na_count": 6, "avg_earned": 3.6, "rate": 90.0, "status": "양호" },
+    { "item_code": "A3", "item_name": "경청 및 용건·니즈 파악", "domain_code": "A", "max_score": 4, "applied_count": 145, "na_count": 0, "avg_earned": 3.6, "rate": 90.0, "status": "양호" },
+    { "item_code": "B1", "item_name": "정보 정확성", "domain_code": "B", "max_score": 8, "applied_count": 145, "na_count": 0, "avg_earned": 6.5, "rate": 81.3, "status": "양호" },
+    { "item_code": "B2", "item_name": "쉬운 설명", "domain_code": "B", "max_score": 6, "applied_count": 96, "na_count": 49, "avg_earned": 4.8, "rate": 80.0, "status": "양호" },
+    { "item_code": "B3", "item_name": "적극적 해결·대안 제시", "domain_code": "B", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 4.9, "rate": 81.7, "status": "양호" },
+    { "item_code": "B4", "item_name": "신속·효율적 처리", "domain_code": "B", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 4.8, "rate": 80.0, "status": "양호" },
+    { "item_code": "C1", "item_name": "공감 표현", "domain_code": "C", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 4.4, "rate": 73.3, "status": "보통" },
+    { "item_code": "C2", "item_name": "친절·언어예절", "domain_code": "C", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 5.1, "rate": 85.0, "status": "양호" },
+    { "item_code": "C3", "item_name": "감정 대응", "domain_code": "C", "max_score": 6, "applied_count": 61, "na_count": 84, "avg_earned": 4.5, "rate": 75.0, "status": "보통" },
+    { "item_code": "D1", "item_name": "중요사항 설명의무", "domain_code": "D", "max_score": 7, "applied_count": 38, "na_count": 107, "avg_earned": 3.5, "rate": 50.0, "status": "개선 필요" },
+    { "item_code": "D2", "item_name": "적합성 원칙(절차+결과)", "domain_code": "D", "max_score": 5, "applied_count": 38, "na_count": 107, "avg_earned": 2.1, "rate": 42.0, "status": "개선 필요" },
+    { "item_code": "D3", "item_name": "고지의무 안내", "domain_code": "D", "max_score": 5, "applied_count": 38, "na_count": 107, "avg_earned": 3.2, "rate": 64.0, "status": "보통" },
+    { "item_code": "D4", "item_name": "면책·부지급 사유 설명", "domain_code": "D", "max_score": 4, "applied_count": 38, "na_count": 107, "avg_earned": 1.8, "rate": 45.0, "status": "개선 필요" },
+    { "item_code": "D5", "item_name": "청약철회·해피콜 안내", "domain_code": "D", "max_score": 4, "applied_count": 38, "na_count": 107, "avg_earned": 2.6, "rate": 65.0, "status": "보통" },
+    { "item_code": "D6", "item_name": "허위·과장 및 부당권유 금지", "domain_code": "D", "max_score": 5, "applied_count": 52, "na_count": 93, "avg_earned": 4.2, "rate": 84.0, "status": "양호" },
+    { "item_code": "E1", "item_name": "처리내용 재확인·이해 점검", "domain_code": "E", "max_score": 7, "applied_count": 145, "na_count": 0, "avg_earned": 5.4, "rate": 77.1, "status": "보통" },
+    { "item_code": "E2", "item_name": "종료 인사·추가 안내", "domain_code": "E", "max_score": 7, "applied_count": 145, "na_count": 0, "avg_earned": 4.9, "rate": 70.0, "status": "보통" }
+  ],
+  "improvement_items": [
+    { "item_code": "D2", "item_name": "적합성 원칙(절차+결과)", "domain_code": "D", "rate": 42.0, "tip": "가입목적·재정상황·기존계약 확인 절차 누락이 반복됨. 권유 전 3대 확인 습관화 필요." },
+    { "item_code": "D4", "item_name": "면책·부지급 사유 설명", "domain_code": "D", "rate": 45.0, "tip": "언급은 하나 중요성을 축소해 설명하는 경향. 명확한 강조 표현으로 코칭 필요." },
+    { "item_code": "D1", "item_name": "중요사항 설명의무", "domain_code": "D", "rate": 50.0, "tip": "보장내용 세부범주(진단비·수술비 등) 설명 누락 빈도 높음. 체크리스트 활용 권장." }
+  ]
+}
