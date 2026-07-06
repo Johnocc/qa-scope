@@ -1,0 +1,108 @@
+# =====================================================================
+# 한빛생명(가상) 콜센터 QA 자동채점 — 개발용 Docker Compose
+# 서비스: app(Next.js 화면+API) / mysql / chroma(벡터DB)
+#
+# 사용:
+#   1) cp .env.example .env  후 값 채우기 (특히 API 키)
+#   2) docker compose up -d --build
+#   3) 앱 http://localhost:3000  ·  API 예: http://localhost:3000/api/health
+#
+# 개발(dev) 기준. 운영 배포 시 비밀번호·시크릿은 시크릿 매니저로 옮길 것.
+# =====================================================================
+
+services:
+  # -------------------------------------------------------------------
+  # 앱 — Next.js (화면 + /api 라우트 = 채점 엔진)
+  # -------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qa-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      # DB 접속 — 컨테이너 간 통신은 서비스명(mysql)이 호스트가 된다
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      # 벡터DB
+      CHROMA_URL: http://chroma:8000
+      # 채점·검증 LLM (프로바이더 추상화: gemini/claude)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      # 저점수 컷은 DB app_config가 정본, 부팅 폴백용으로도 전달
+      LOW_SCORE_CUT: ${LOW_SCORE_CUT:-70}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      # 개발 편의: 소스 핫리로드. node_modules·.next는 컨테이너 것 유지
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      mysql:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    networks:
+      - qa-net
+
+  # -------------------------------------------------------------------
+  # 관계형 DB — 상담/평가 정형 데이터
+  # -------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: qa-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # 최초 기동 시(볼륨이 빈 상태) 이 SQL 1개를 자동 실행해 스키마 생성.
+      # 파일 하나만 초기화 폴더로 마운트 → scripts/ 의 다른 파일엔 영향 없음.
+      - ./scripts/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - qa-net
+
+  # -------------------------------------------------------------------
+  # 벡터 DB — RAG 참조문서(docs/rag/) 임베딩 검색
+  # -------------------------------------------------------------------
+  chroma:
+    image: chromadb/chroma:0.5.5
+    container_name: qa-chroma
+    restart: unless-stopped
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - qa-net
+
+networks:
+  qa-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  chroma_data:
