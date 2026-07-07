@@ -6,10 +6,10 @@
  *  ② 근거 인용문을 원문과 대조해 dialogue_id 확정 (안전망 2 — matchQuote)
  *  ③ saveFinalEvaluation 트랜잭션 저장 (집계는 그 안에서 재계산)
  *
- * 재채점 정책(MVP): 같은 상담의 기존 AI_최종 평가는 삭제 후 새로 저장.
- * (UNIQUE(consultation_id, evaluator) — 상담당 AI 최종본 1건 유지)
+ * 재채점 정책(v4): 덮어쓰기는 saveFinalEvaluation()이 트랜잭션 안에서 처리한다
+ * (기존 정본을 3-E stage='정본교체'로 보존 → 삭제 → 새 저장).
+ * 이 파일에서 기존 평가를 미리 지우면 보존 로직이 무력화되므로 선삭제 금지.
  */
-import { query } from './pool'
 import { ensureAgent } from './agentRepo'
 import * as consultations from './consultationRepo'
 import { buildDialogueCode } from './consultationRepo'
@@ -94,12 +94,7 @@ export async function persistEvaluation(
     }
   }
 
-  // ③ 재채점이면 기존 AI 최종본 교체 (상세·근거·플래그는 FK CASCADE로 함께 삭제)
-  await query(
-    `DELETE FROM ai_evaluation_master WHERE consultation_id = ? AND evaluator = 'AI_최종'`,
-    [consultationId],
-  )
-
+  // ③ 저장 — 재채점 덮어쓰기(정본교체 보존 포함)는 saveFinalEvaluation 트랜잭션이 수행
   const evaluationId = await saveFinalEvaluation(consultationId, final, {
     evaluator: 'AI_최종',
     aiModel: final.평가메타?.AI모델 ?? null,
