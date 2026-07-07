@@ -33,7 +33,7 @@ async function main() {
     console.log(`  위험표시: ${result.집계.위험표시여부}`)
   } catch (err) {
     console.error('\n채점 실패:', err instanceof Error ? err.message : String(err))
-    process.exit(1)
+    process.exitCode = 1
   }
 }
 

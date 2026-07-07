@@ -79,7 +79,13 @@ export async function scoreConsultation(
     if (Array.isArray(obj['항목평가'])) {
       for (const item of obj['항목평가']) {
         if (item !== null && typeof item === 'object') {
-          delete (item as Record<string, unknown>)['항목명']
+          const it = item as Record<string, unknown>
+          delete it['항목명']
+          delete it['상세판단']
+          // 코멘트가 문자열이 아니면 제거 (선택 필드)
+          if ('코멘트' in it && typeof it['코멘트'] !== 'string') {
+            delete it['코멘트']
+          }
         }
       }
     }
@@ -88,6 +94,51 @@ export async function scoreConsultation(
     }
     if (!Array.isArray(obj['위험플래그'])) {
       obj['위험플래그'] = []
+    }
+    // 위험플래그[*].근거 객체/배열 → 문자열 변환
+    if (Array.isArray(obj['위험플래그'])) {
+      for (const flag of obj['위험플래그']) {
+        if (flag !== null && typeof flag === 'object') {
+          const f = flag as Record<string, unknown>
+          if (f['근거'] !== null && typeof f['근거'] !== 'string') {
+            f['근거'] = Array.isArray(f['근거'])
+              ? (f['근거'] as unknown[]).join(' ')
+              : JSON.stringify(f['근거'])
+          }
+        }
+      }
+    }
+    // 평가메타 여분 키 제거 (pipeline이 최종 조립 시 덮어쓰므로 허용 키만 남김)
+    if (obj['평가메타'] !== null && typeof obj['평가메타'] === 'object') {
+      const meta = obj['평가메타'] as Record<string, unknown>
+      const allowedMetaKeys = new Set(['평가주체', 'AI모델', '루브릭버전', '평가일시'])
+      for (const key of Object.keys(meta)) {
+        if (!allowedMetaKeys.has(key)) delete meta[key]
+      }
+    }
+    // 요약 누락 시 빈 문자열로 채움 (required 필드)
+    if (!('요약' in obj) || obj['요약'] === null || obj['요약'] === undefined) {
+      obj['요약'] = ''
+    }
+    // 판매정보.확인절차 영문 키 → 한글 키 정규화
+    if (obj['판매정보'] !== null && typeof obj['판매정보'] === 'object') {
+      const 판매정보 = obj['판매정보'] as Record<string, unknown>
+      if (typeof 판매정보['확인절차'] === 'object' && 판매정보['확인절차'] !== null) {
+        const 절차 = 판매정보['확인절차'] as Record<string, unknown>
+        const keyMap: Record<string, string> = {
+          purpose: '가입목적',
+          financial_status: '재정상황',
+          financialStatus: '재정상황',
+          existing_contract: '기존계약',
+          existingContract: '기존계약',
+        }
+        for (const [eng, kor] of Object.entries(keyMap)) {
+          if (eng in 절차) {
+            절차[kor] = 절차[eng]
+            delete 절차[eng]
+          }
+        }
+      }
     }
   }
 

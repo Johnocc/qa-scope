@@ -52,11 +52,20 @@ export function calcAggregate(
       ? Math.round((원점수합 / 적용배점합) * 1000) / 10
       : 0
 
-  const dItems = items.filter(
-    (item) => item.항목코드.startsWith('D') && item.충족수준 !== '해당없음'
-  )
+  // 규칙5: D1~D5 적용배점합이 0(전부 N/A)이면 신규판매 상담이 아니므로 건너뜀
+  const d15BaseSum = items
+    .filter(
+      (item) =>
+        ['D1', 'D2', 'D3', 'D4', 'D5'].includes(item.항목코드) &&
+        item.충족수준 !== '해당없음'
+    )
+    .reduce((s, item) => s + SCORE_TABLE[item.항목코드], 0)
+
   const effectiveFlags: RiskFlag[] = [...flags]
-  if (dItems.length > 0) {
+  if (d15BaseSum > 0) {
+    const dItems = items.filter(
+      (item) => item.항목코드.startsWith('D') && item.충족수준 !== '해당없음'
+    )
     const dBaseSum = dItems.reduce((s, item) => s + SCORE_TABLE[item.항목코드], 0)
     const dScoreSum = dItems.reduce(
       (s, item) => s + itemScore(item.충족수준, SCORE_TABLE[item.항목코드]),
