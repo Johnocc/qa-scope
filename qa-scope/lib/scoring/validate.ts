@@ -1,9 +1,11 @@
-import Ajv2020 from 'ajv/dist/2020'
+// .js 확장자 필수 — Next(webpack)와 Node 네이티브 ESM(strip-types 스크립트) 양쪽 호환
+import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-const ajv = new Ajv2020({ allErrors: true })
+// allowUnionTypes: 스키마 ver2가 type: ["string","null"] 등 union을 정당하게 사용
+const ajv = new Ajv2020({ allErrors: true, allowUnionTypes: true })
 addFormats(ajv)
 
 const schema = JSON.parse(

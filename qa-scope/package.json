@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:schema": "node scripts/apply-schema.js",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
@@ -14,6 +16,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "dotenv": "^17.4.2",
+    "mysql2": "^3.22.5",
     "next": "^16.2.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -24,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
+    "tsx": "^4.23.0",
     "typescript": "^5"
   }
 }

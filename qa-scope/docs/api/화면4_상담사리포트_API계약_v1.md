@@ -1,0 +1,219 @@
+# 화면④ 상담사 개인 평가 리포트 — API 응답 계약 v1
+
+> **목적:** 프론트엔드(화면④ 목업 → Next.js 이식)와 백엔드(DB·집계 쿼리)가
+> 서로 기다리지 않고 병렬로 작업하기 위한 **데이터 약속 문서**다.
+> 프론트는 이 문서(+ 예시 JSON)만 보고 화면을 만들고,
+> 백엔드는 이 문서대로 API를 구현한다. 형태가 같으면 붙였을 때 충돌이 없다.
+>
+> **예시 응답(목업 수치 그대로):** `schemas/agent-report.v1.example.json`
+> — 프론트 개발 중 이 파일을 가짜 응답(stub)으로 그대로 사용 가능.
+
+---
+
+## 0. 쉬운 설명 (개발 배경을 모르는 팀원용)
+
+- 화면④는 "상담사 한 명"의 성적표다. 그런데 DB에는 **상담 1건 단위**의
+  채점 결과만 저장돼 있다. 그래서 서버가 그 상담사의 채점 결과 여러 건을
+  **합산·평균 내서(=집계)** 화면이 바로 그릴 수 있는 형태로 내려줘야 한다.
+- 이 문서는 그 "내려주는 데이터의 생김새"를 미리 못 박은 것이다.
+  화면에 보이는 요소(상단 카드 4개, 스파이더 차트, 개선 필요 항목,
+  18개 항목 표)와 응답 블록이 **1:1로 대응**하도록 설계했다.
+- 점수 계산·상태 판정("양호/보통/개선 필요")·약점 영역 선정은 **전부 서버가
+  계산해서 내려준다.** 프론트는 받은 값을 그리기만 한다.
+  (이 프로젝트의 원칙 "계산은 코드가, 화면은 표시만" — CLAUDE.md §7)
+
+---
+
+## 1. 확정 결정 사항
+
+| # | 결정 | 내용 · 이유 |
+|---|---|---|
+| 1 | **키 표기 = 영문 snake_case** | 기존 앱 API(`/api/evaluations`)와 통일. 한글 키는 LLM 출력 계약(출력스키마 ver2) 전용으로 유지 → "LLM 계약=한글 / 앱 API=영문"으로 역할 분리 |
+| 2 | **N/A 항목도 빼지 않고 전달** | `items`는 **항상 18개 고정**. 적용 건수가 0인 항목은 `status: "해당없음"` + 수치 필드 `null` (팀 결정 2026-07-05) |
+| 3 | **기간 필터 기준 = 상담일(`consulted_at`)** | "최근 30일"은 상담이 이뤄진 날짜 기준 (평가 실행일 아님) |
+| 4 | **임계값은 서버가 내려줌** | 60%·80% 컷을 프론트에 하드코딩하지 않는다. `meta.thresholds`로 전달 (원본: `app_config`) — "70점 컷 하드코딩 금지"와 같은 원칙 |
+| 5 | **상태·약점·개선목록은 서버 계산** | `items[].status`, `summary.weak_domain`, `improvement_items`를 프론트가 재계산하지 않는다 (화면③과 화면④가 어긋나는 것 방지) |
+| 6 | **소수 처리** | 비율·평균은 소수 1자리 반올림한 JSON number (예: `81.3`) |
+
+---
+
+## 2. 엔드포인트
+
+```
+GET /api/agents/{agent_id}/report?period=30d
+```
+
+| 파라미터 | 위치 | 값 | 기본값 | 설명 |
+|---|---|---|---|---|
+| `agent_id` | path | 문자열 (예: `AG-003`) | 필수 | 상담사 ID |
+| `period` | query | `30d` \| `90d` \| `all` | `30d` | 조회 기간 (목업의 "최근 30일/90일/전체 기간" 셀렉트와 대응) |
+
+- 성공: `200` + 아래 §3 형태의 JSON
+- 존재하지 않는 상담사: `404` + `{ "error": "agent not found" }`
+- 서버 오류: `500` + `{ "error": "<메시지>" }`
+
+---
+
+## 3. 응답 구조 (블록 4개 + 메타)
+
+화면 요소와의 대응:
+
+| 응답 블록 | 화면④ 요소 |
+|---|---|
+| `meta` | 헤더(상담사명·기간)·임계값 |
+| `summary` | 상단 통계 카드 4개 + 약점 배지 |
+| `domain_rates` | 스파이더 차트 (5영역, 본인 vs 팀) |
+| `items` | 항목별 상세 표 (18개) |
+| `improvement_items` | 개선 필요 항목 박스 |
+
+### 3.1 `meta`
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `agent_id` | string | 상담사 ID |
+| `agent_name` | string | 상담사 이름 (상담사 마스터 테이블 신설 후 제공 — v3 스키마) |
+| `period` | string | 요청한 기간 값 에코 (`30d`/`90d`/`all`) |
+| `period_from` / `period_to` | string(date) | 실제 조회 구간. `all`이면 `period_from`은 최초 상담일 |
+| `generated_at` | string(date-time) | 응답 생성 시각 |
+| `rubric_version` | string | `"v1.5"` |
+| `thresholds.item_rate_warn` | number | 이 값 **미만** → `"개선 필요"` (기본 60) |
+| `thresholds.item_rate_ok` | number | 이 값 **이상** → `"양호"`, 사이는 `"보통"` (기본 80) |
+
+### 3.2 `summary` — 상단 카드 + 배지
+
+| 필드 | 타입 | 카드 | 설명 |
+|---|---|---|---|
+| `evaluation_count` | number | 채점 건수 | 기간 내 이 상담사의 평가 건수 |
+| `total_evaluation_count` | number | 〃 부제 | 기간 내 전체(모든 상담사) 평가 건수 |
+| `avg_score` | number\|null | 평균 점수 | 환산총점(`final_score`)의 **건 단위 평균**. 0건이면 `null` |
+| `team_avg_score` | number\|null | 〃 부제 | 기간 내 전체 평가 건의 건 단위 평균 (화면①·③ 수치와 동일 기준) |
+| `risk_count` | number | 위험 건 | `risk_flagged = true` 건수 |
+| `total_risk_count` | number | 〃 부제 | 기간 내 전체 위험 건수 |
+| `rank` | number\|null | 팀 내 순위 | 상담사별 평균점수 내림차순 순위. 동점은 공동 순위(RANK). 0건이면 `null` |
+| `agent_count` | number | 〃 부제 | 기간 내 평가 1건 이상 보유 상담사 수 |
+| `weak_domain` | object\|null | 약점 배지 | 아래 참조. 적용 영역이 하나도 없으면 `null` |
+
+`weak_domain` 객체:
+
+```json
+{ "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "label": "불완전판매 고지" }
+```
+
+- **선정 규칙:** 적용 건수가 있는 영역 중 **달성률 최저 영역**.
+  동률이면 배점 합이 큰 영역 우선(리스크 가중: D30 > B26 > C18 > E14 > A12).
+  단, **최저 영역 달성률이 `item_rate_ok` 이상이면 `null`(약점 없음)** —
+  전 영역 우수 상담사에게 약점 배지를 달지 않는다 (화면③ 목업의 "약점 항목:
+  없음" 행과 동일 의미. v1.1 보완).
+- `label`은 화면③ 약점 항목 컬럼·화면④ 배지에 공통 사용하는 표시 문구
+  (영역별 고정 매핑): A=`상담 도입` / B=`업무처리` / C=`공감·경청` /
+  D=`불완전판매 고지` / E=`상담 마무리`
+
+### 3.3 `domain_rates` — 스파이더 차트 (항상 5개, A→E 순)
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `domain_code` | string | `"A"`~`"E"` |
+| `domain_name` | string | 예: `"상담 도입"` |
+| `rate` | number\|null | 본인 획득률(%) = Σ획득점수 ÷ Σ배점 × 100 (**N/A 제외**, §4). 적용 0건이면 `null` |
+| `team_rate` | number\|null | 같은 기간·같은 수식의 전체 상담사 획득률 |
+| `applied_count` | number | 이 영역 항목이 1개 이상 적용된 평가 건수 |
+
+> 차트에서 `rate: null`인 영역은 0으로 그리지 말 것 (0점과 "평가 상황 없음"은 다름).
+> Chart.js는 데이터에 `null`을 주면 해당 꼭짓점을 비워서 그린다.
+
+### 3.4 `items` — 항목별 상세 (항상 18개, A1→E2 루브릭 순)
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `item_code` | string | `"A1"`~`"E2"` |
+| `item_name` | string | 루브릭 v1.5 항목명 |
+| `domain_code` | string | 소속 영역 (표의 영역 그룹 행 렌더링용) |
+| `max_score` | number | 배점 (루브릭 v1.5 고정값) |
+| `applied_count` | number | N/A 아닌 평가 건수 (달성률의 분모 모수) |
+| `na_count` | number | `충족수준='해당없음'` 이었던 건수 |
+| `avg_earned` | number\|null | 적용 건들의 획득점수 평균. `applied_count=0`이면 `null` |
+| `rate` | number\|null | `avg_earned ÷ max_score × 100`. `applied_count=0`이면 `null` |
+| `status` | string | `"양호"` / `"보통"` / `"개선 필요"` / `"해당없음"` (서버가 `thresholds`로 판정) |
+
+**N/A 전달 방식 (팀 결정):** 항목을 배열에서 빼지 않는다.
+적용 건수가 0인 항목은 이렇게 내려온다:
+
+```json
+{
+  "item_code": "D2", "item_name": "적합성 원칙(절차+결과)", "domain_code": "D",
+  "max_score": 5, "applied_count": 0, "na_count": 145,
+  "avg_earned": null, "rate": null, "status": "해당없음"
+}
+```
+
+→ 프론트는 `status === "해당없음"`이면 달성률 막대·수치 대신 `—`를 표시.
+
+### 3.5 `improvement_items` — 개선 필요 항목 (0~5개, 달성률 오름차순)
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `item_code` / `item_name` / `domain_code` | string | `items`와 동일 항목 참조 |
+| `rate` | number | 달성률 (`items[].rate`와 동일 값) |
+| `tip` | string\|null | 코칭 팁 문구. **항목코드별 정적 매핑**(서버 상수)에서 제공. 문구 미확정 항목은 `null` — 프론트는 `null`이면 팁 줄 생략 |
+
+- **포함 규칙:** `rate < thresholds.item_rate_warn` 인 항목만, 오름차순, 최대 5개.
+- 해당 항목이 없으면 빈 배열 `[]` → 프론트는 "개선 필요 항목 없음 🎉" 등 빈 상태 표시.
+
+---
+
+## 4. 집계 규칙 (서버 구현 기준 — 수식 정본)
+
+건 단위 채점의 환산총점 규칙(CLAUDE.md §8.1)과 **같은 원칙**을 집계에 적용한다:
+**N/A(충족수준='해당없음')는 분자·분모 모두에서 제외한다.**
+
+```
+항목 달성률(%)  = Σ(획득점수 where level≠해당없음) ÷ Σ(배점 where level≠해당없음) × 100
+              = avg_earned ÷ max_score × 100          ← 항목은 배점 고정이라 동치
+영역 획득률(%)  = 영역 내 모든 적용 항목의 Σ획득점수 ÷ Σ배점 × 100
+평균 점수      = AVG(final_score)   ← 건 단위 평균 (상담사 평균의 평균 아님)
+위험 건       = COUNT(risk_flagged = true)
+```
+
+- 반올림: `round(x × 10) / 10` (소수 1자리) — 계산 마지막에 1회만.
+- 팀 수치(`team_avg_score`, `team_rate`)는 같은 기간·같은 수식을 전체 평가 건에 적용.
+- 데이터 원천: `ai_evaluation_details`(level·max_score·earned_score) ×
+  `ai_evaluation_master`(final_score·risk_flagged) × `consultation_master`(agent_id·consulted_at).
+
+---
+
+## 5. 엣지 케이스 (프론트·백 공통 확인 목록)
+
+| 상황 | 응답 |
+|---|---|
+| 기간 내 평가 0건 | `evaluation_count: 0`, `avg_score/rank/weak_domain: null`, `items` 18개 전부 `해당없음`, `domain_rates` 전부 `rate: null`, `improvement_items: []` |
+| 특정 항목 전 건 N/A (예: 신규판매 상담이 없어 D1~D5 전부) | 해당 항목만 `해당없음` 형태 (§3.4 예시) |
+| 상담사 1명뿐 | `rank: 1`, `agent_count: 1` (팀 평균 = 본인 평균) |
+| 동점 순위 | 공동 순위 (예: 1, 2, 2, 4) |
+| 알 수 없는 `period` 값 | `400` + `{ "error": "invalid period" }` |
+
+---
+
+## 6. 남은 일 (이 계약과 연결된 후속 작업)
+
+- [x] 상담사 마스터 테이블 신설 + `agent_name` 공급 (AXDB_v3 — 2026-07-05 완료.
+      `agents` 테이블 + 더미 명부 시드, `consultation_master.agent_id` FK 전환,
+      복합 인덱스 `idx_master_agent_date`. 정본: `scripts/schema.sql` /
+      스냅샷: `lib/db/AXDB_v3.sql` / 접근: `lib/db/agentRepo.ts`)
+- [x] `app_config`에 `item_rate_warn`(60)·`item_rate_ok`(80) 키 시드 추가 (2026-07-05, v3에 포함)
+- [x] 집계 쿼리 + API 라우트 구현 (3순위 — 2026-07-05 완료.
+      `lib/db/agentReportRepo.ts`(집계·리포트 빌더) +
+      `app/api/agents/[agentId]/report/route.ts`. 시드 데이터로 통합 검증 완료)
+- [ ] 코칭 팁 정적 문구 18개 확정 (현재 D1·D2·D4만 등록 — 목업 초안 문구 채택.
+      나머지는 `tip: null`)
+- [ ] 화면③(대시보드)용 API 계약은 별도 문서로 (이 문서는 화면④ 전용)
+
+> 주: 예시 응답의 `agent_id`는 목업 서사(김상담)를 따른 가상값이다.
+> 실제 시드 명부는 `AGT-001 이지현 ~ AGT-006 김도연` + `unknown 미배정` —
+> 화면 연동 테스트 시 이 ID를 사용할 것.
+
+## 7. 변경 이력
+
+| 버전 | 일자 | 내용 |
+|---|---|---|
+| v1 | 2026-07-05 | 최초 확정 — 키 표기 snake_case, N/A '해당없음' 전달(항목 유지), 기간 기준 consulted_at |
+| v1.1 | 2026-07-05 | `weak_domain` 보완 — 최저 영역 달성률이 `item_rate_ok` 이상이면 `null`(약점 없음). 구현 중 발견: 전 영역 100% 상담사에게 동률 tie-break로 D영역 배지가 달리는 문제 방지 |
