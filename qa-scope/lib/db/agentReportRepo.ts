@@ -103,22 +103,20 @@ export interface AgentReport {
     rubric_version: string
     thresholds: { item_rate_warn: number; item_rate_ok: number }
   }
+  // v1.2(2026-07-08): 순위·팀 비교 필드(rank·agent_count·team_avg_score·team_rate) 제거 —
+  // 코칭 도구 철학(줄세우기 배제). 재도입 여지는 계약 §6 참조 (git 이력에서 복원).
   summary: {
     evaluation_count: number
     total_evaluation_count: number
     avg_score: number | null
-    team_avg_score: number | null
     risk_count: number
     total_risk_count: number
-    rank: number | null
-    agent_count: number
     weak_domain: { domain_code: DomainCode; domain_name: string; label: string } | null
   }
   domain_rates: {
     domain_code: DomainCode
     domain_name: string
     rate: number | null
-    team_rate: number | null
     applied_count: number
   }[]
   items: {
@@ -175,13 +173,13 @@ function periodClause(fromDate: string | null): { sql: string; params: any[] } {
 // 집계 쿼리 3종
 // ---------------------------------------------------------------------
 
-/** ① 요약 — 본인/전체 건수·평균·위험 건수를 조건부 집계로 한 번에 */
+/** ① 요약 — 본인/전체 건수·평균·위험 건수를 조건부 집계로 한 번에.
+ *  전체 카운트(total_cnt·total_risk)는 표본 표기용으로 응답에 유지 (계약 v1.2 결정 8) */
 async function fetchSummaryStats(agentId: string, fromDate: string | null) {
   const p = periodClause(fromDate)
   const rows = await query<{
     total_cnt: number
     agent_cnt: number
-    team_avg: number | null
     agent_avg: number | null
     total_risk: number
     agent_risk: number
@@ -189,7 +187,6 @@ async function fetchSummaryStats(agentId: string, fromDate: string | null) {
     `SELECT
        COUNT(*)                                                    AS total_cnt,
        COALESCE(SUM(c.agent_id = ?), 0)                            AS agent_cnt,
-       AVG(m.final_score)                                          AS team_avg,
        AVG(CASE WHEN c.agent_id = ? THEN m.final_score END)        AS agent_avg,
        COALESCE(SUM(m.risk_flagged), 0)                            AS total_risk,
        COALESCE(SUM(CASE WHEN c.agent_id = ? THEN m.risk_flagged END), 0) AS agent_risk
@@ -201,20 +198,7 @@ async function fetchSummaryStats(agentId: string, fromDate: string | null) {
   return rows[0]
 }
 
-/** ② 순위 — 기간 내 평가 보유 상담사별 평균 (미배정 unknown은 순위·분모 제외) */
-async function fetchRanking(fromDate: string | null) {
-  const p = periodClause(fromDate)
-  return query<{ agent_id: string; avg_score: number }>(
-    `SELECT c.agent_id, AVG(m.final_score) AS avg_score
-     FROM ai_evaluation_master m
-     JOIN consultation_master c ON c.consultation_id = m.consultation_id
-     WHERE m.evaluator = 'AI_최종' AND c.agent_id <> 'unknown' ${p.sql}
-     GROUP BY c.agent_id`,
-    p.params,
-  )
-}
-
-/** ③ 영역별 획득률 — 본인/팀을 조건부 집계로 한 번에 (N/A 제외 — 계약 §4) */
+/** ② 영역별 획득률 — 본인만, N/A 제외 (계약 §4. 팀 획득률은 v1.2에서 제거) */
 async function fetchDomainRates(agentId: string, fromDate: string | null) {
   const p = periodClause(fromDate)
   return query<{
@@ -222,26 +206,22 @@ async function fetchDomainRates(agentId: string, fromDate: string | null) {
     a_earned: number | null
     a_max: number | null
     a_applied: number
-    t_earned: number | null
-    t_max: number | null
   }>(
     `SELECT
-       LEFT(d.item_code, 1)                                            AS domain_code,
-       SUM(CASE WHEN c.agent_id = ? THEN d.earned_score END)           AS a_earned,
-       SUM(CASE WHEN c.agent_id = ? THEN d.max_score END)              AS a_max,
-       COUNT(DISTINCT CASE WHEN c.agent_id = ? THEN d.evaluation_id END) AS a_applied,
-       SUM(d.earned_score)                                             AS t_earned,
-       SUM(d.max_score)                                                AS t_max
+       LEFT(d.item_code, 1)             AS domain_code,
+       SUM(d.earned_score)              AS a_earned,
+       SUM(d.max_score)                 AS a_max,
+       COUNT(DISTINCT d.evaluation_id)  AS a_applied
      FROM ai_evaluation_details d
      JOIN ai_evaluation_master m ON m.evaluation_id = d.evaluation_id
      JOIN consultation_master c ON c.consultation_id = m.consultation_id
-     WHERE m.evaluator = 'AI_최종' AND d.level <> '해당없음' ${p.sql}
+     WHERE m.evaluator = 'AI_최종' AND c.agent_id = ? AND d.level <> '해당없음' ${p.sql}
      GROUP BY domain_code`,
-    [agentId, agentId, agentId, ...p.params],
+    [agentId, ...p.params],
   )
 }
 
-/** ④ 항목별 상세 — 적용/N/A 건수·평균 획득 (없는 항목은 빌더가 18개로 채움) */
+/** ③ 항목별 상세 — 적용/N/A 건수·평균 획득 (없는 항목은 빌더가 18개로 채움) */
 async function fetchItemStats(agentId: string, fromDate: string | null) {
   const p = periodClause(fromDate)
   return query<{
@@ -296,31 +276,21 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
   }
 
   const fromDate = periodFromDate(period)
-  const [stats, ranking, domainRows, itemRows] = await Promise.all([
+  const [stats, domainRows, itemRows] = await Promise.all([
     fetchSummaryStats(agentId, fromDate),
-    fetchRanking(fromDate),
     fetchDomainRates(agentId, fromDate),
     fetchItemStats(agentId, fromDate),
   ])
 
-  // ---- summary ----
-  const myRank = ranking.find((r) => r.agent_id === agentId)
-  const rank =
-    myRank == null
-      ? null // 기간 내 평가 0건 or unknown — 순위 없음
-      : 1 + ranking.filter((r) => r.avg_score > myRank.avg_score).length // 동점 공동 순위(RANK)
-
-  // ---- domain_rates (항상 5개, A→E — 계약 §3.3) ----
+  // ---- domain_rates (항상 5개, A→E — 계약 §3.3. v1.2: 본인 값만) ----
   const domainByCode = new Map(domainRows.map((r) => [r.domain_code, r]))
   const domain_rates: AgentReport['domain_rates'] = DOMAIN_CODES.map((code) => {
     const r = domainByCode.get(code)
     const hasAgent = r != null && r.a_max != null && Number(r.a_max) > 0
-    const hasTeam = r != null && r.t_max != null && Number(r.t_max) > 0
     return {
       domain_code: code,
       domain_name: DOMAIN_NAMES[code],
       rate: hasAgent ? round1((Number(r!.a_earned) / Number(r!.a_max)) * 100) : null,
-      team_rate: hasTeam ? round1((Number(r!.t_earned) / Number(r!.t_max)) * 100) : null,
       applied_count: r?.a_applied ?? 0,
     }
   })
@@ -398,11 +368,8 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
       evaluation_count: Number(stats.agent_cnt),
       total_evaluation_count: Number(stats.total_cnt),
       avg_score: stats.agent_avg == null ? null : round1(Number(stats.agent_avg)),
-      team_avg_score: stats.team_avg == null ? null : round1(Number(stats.team_avg)),
       risk_count: Number(stats.agent_risk),
       total_risk_count: Number(stats.total_risk),
-      rank,
-      agent_count: ranking.length,
       weak_domain,
     },
     domain_rates,

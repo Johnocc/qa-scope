@@ -217,10 +217,16 @@ GET /api/agents/{agent_id}/report?period=30d
 - [x] 화면③(대시보드)용 API 계약은 별도 문서로 (2026-07-08 완료 —
       `화면3_상담사대시보드_API계약_v1.md`. 화면①·②용도 같은 날 확정:
       `화면1_채점결과목록_API계약_v1.md` / `화면2_채점상세_API계약_v1.md`)
-- [ ] v1.2 필드 제거를 서버 구현에 반영 — `lib/db/agentReportRepo.ts`에서
-      팀 평균·팀 획득률·RANK 집계 삭제 + 예시 응답
-      `schemas/agent-report.v1.example.json`에서 `team_avg_score`·`rank`·
-      `agent_count`·`team_rate` 제거 (제거 후 시드 데이터 재검증)
+- [x] v1.2 필드 제거를 서버 구현에 반영 (2026-07-09 완료 —
+      `lib/db/agentReportRepo.ts`에서 팀 평균·팀 획득률·RANK 집계 삭제,
+      예시 응답 `schemas/agent-report.v1.example.json`은 2026-07-08 선반영.
+      `rank`·`agent_count`는 확정 삭제)
+- [ ] 팀 비교(`team_avg_score`·`team_rate`) **재도입 여지 있음** (2026-07-09 결정) —
+      추후 여유 시 "본인 vs 팀" 비교 기능으로 부활 가능. 재도입 시
+      계약 버전 업(필드 복원 명시) → git 이력에서 서버 구현 복원 → 스텁 갱신 순서로.
+      화면③ 대시보드의 전체 집계(같은 수식)도 참고 구현이 됨
+- [ ] 화면④ 목업(`docs/mocksup/화면4_상담사평가리포트_목업.html`)이 아직 v1 필드
+      (팀 점선·순위 카드·팀 평균 부제)를 그림 — FE 이식 시 v1.2 스텁 기준으로 갱신
 - [ ] 표본 표기("전체 N건 중 M건") 재도입 여부 결정 — 현재 보류
       (데이터 규모가 커지면 화면만 복원, 응답 필드는 이미 있음)
 
