@@ -7,6 +7,7 @@ import { validateOutput } from './validate'
 import { fillItemScores, calcAggregate } from './calculate'
 import { saveResult } from '../db/index'
 import { persistEvaluation } from '../db/persist'
+import * as configRepo from '../db/configRepo'
 import type { EvalOutput } from './types'
 
 function cleanAndParse(raw: string): unknown | null {
@@ -24,8 +25,13 @@ function cleanAndParse(raw: string): unknown | null {
   }
 }
 
+// 위험플래그.근거를 스키마(string)에 맞게 문자열로 변환.
+// LLM이 {대화ID, 인용문} 객체/배열 형식으로 채우는 경우까지 처리한다.
 function stringifyFlagEvidence(evidence: unknown): string {
   const one = (e: unknown): string => {
+    // undefined·null 모두 빈 문자열로. (JSON.stringify(undefined)=undefined→검증사망,
+    // JSON.stringify(null)="null"→DB에 문자열 "null" 저장, 둘 다 여기서 차단)
+    if (e == null) return ''
     if (typeof e === 'string') return e
     if (e !== null && typeof e === 'object') {
       const o = e as Record<string, unknown>
@@ -90,24 +96,35 @@ export async function scoreConsultation(
     }
   }
 
-  // 전처리: 스키마에 없는 필드 제거 (validateOutput 전)
+  // 전처리: 스키마에 없는/타입 안 맞는 필드 정리 (validateOutput 전)
   if (parsed !== null && typeof parsed === 'object') {
     const obj = parsed as Record<string, unknown>
+
+    // 항목평가: 여분 키 제거 + 코멘트 타입 정리
     if (Array.isArray(obj['항목평가'])) {
       for (const item of obj['항목평가']) {
         if (item !== null && typeof item === 'object') {
-          delete (item as Record<string, unknown>)['항목명']
+          const it = item as Record<string, unknown>
+          delete it['항목명']
+          delete it['상세판단']
+          // 코멘트가 문자열이 아니면 제거 (선택 필드)
+          if ('코멘트' in it && typeof it['코멘트'] !== 'string') {
+            delete it['코멘트']
+          }
         }
       }
     }
+
+    // 고객만족: null이면 제거 (선택 필드)
     if (obj['고객만족'] === null) {
       delete obj['고객만족']
     }
+
+    // 위험플래그: 배열 아니면 빈 배열로
     if (!Array.isArray(obj['위험플래그'])) {
       obj['위험플래그'] = []
     }
-    // LLM이 위험플래그.근거를 항목평가 근거 형식({대화ID,인용문} 객체/배열)으로
-    // 채우는 경우가 있어 스키마(string)에 맞게 문자열로 정규화한다.
+    // 위험플래그[*].근거 → 문자열 정규화 (객체/배열 형식 대응)
     for (const flag of obj['위험플래그'] as unknown[]) {
       if (flag !== null && typeof flag === 'object') {
         const f = flag as Record<string, unknown>
@@ -116,9 +133,44 @@ export async function scoreConsultation(
         }
       }
     }
+
+    // 평가메타: 여분 키 제거 (pipeline이 최종 조립 시 덮어쓰므로 허용 키만 남김)
+    if (obj['평가메타'] !== null && typeof obj['평가메타'] === 'object') {
+      const meta = obj['평가메타'] as Record<string, unknown>
+      const allowedMetaKeys = new Set(['평가주체', 'AI모델', '루브릭버전', '평가일시'])
+      for (const key of Object.keys(meta)) {
+        if (!allowedMetaKeys.has(key)) delete meta[key]
+      }
+    }
+
+    // ※ 요약·종합피드백은 LLM이 생성하는 콘텐츠라 코드가 재생성하지 않는다.
+    //   누락 시 ''로 백필하면 '빈 평가'가 그대로 저장되므로, 백필하지 않고
+    //   7단계 스키마 검증에서 의도적으로 실패시킨다. (빈 평가 저장 방지 — 재추가 금지)
+
+    // 판매정보.확인절차 영문 키 → 한글 키 정규화
+    if (obj['판매정보'] !== null && typeof obj['판매정보'] === 'object') {
+      const 판매정보 = obj['판매정보'] as Record<string, unknown>
+      if (typeof 판매정보['확인절차'] === 'object' && 판매정보['확인절차'] !== null) {
+        const 절차 = 판매정보['확인절차'] as Record<string, unknown>
+        const keyMap: Record<string, string> = {
+          purpose: '가입목적',
+          financial_status: '재정상황',
+          financialStatus: '재정상황',
+          existing_contract: '기존계약',
+          existingContract: '기존계약',
+        }
+        for (const [eng, kor] of Object.entries(keyMap)) {
+          if (eng in 절차) {
+            절차[kor] = 절차[eng]
+            delete 절차[eng]
+          }
+        }
+      }
+    }
+
     // 집계는 LLM 산수 미신뢰 원칙(§7-1)에 따라 9단계에서 코드가 재계산해
-    // 덮어쓴다. LLM이 계산을 틀려도(예: 환산총점>100) 채점이 죽지 않도록
-    // 검증 전에 스키마 통과용 중립 스텁으로 치환한다.
+    // 덮어쓴다. LLM이 계산을 틀려도(예: 환산총점>100) 검증 전에 죽지 않도록
+    // 스키마 통과용 중립 스텁으로 치환한다.
     obj['집계'] = {
       원점수합: 0,
       적용배점합: 100,
@@ -142,7 +194,15 @@ export async function scoreConsultation(
   const filledItems = fillItemScores(llmOutput.항목평가)
 
   // 9. 집계·플래그 계산 (코드가 덮어씀 — 규칙 5 포함)
-  const { 집계, flags } = calcAggregate(filledItems, llmOutput.위험플래그)
+  //    저점수 컷 정본 = app_config.low_score_cut (재배포 없이 조정 가능).
+  //    DB 저장(evaluationRepo)도 같은 키·같은 폴백을 읽으므로 엔진 JSON과
+  //    DB status_label이 항상 같은 컷으로 계산된다.
+  //    getNumber는 DB 미기동 시 throw 없이 폴백을 반환한다.
+  const cutoff = await configRepo.getNumber(
+    'low_score_cut',
+    Number(process.env.LOW_SCORE_CUT || 70),
+  )
+  const { 집계, flags } = calcAggregate(filledItems, llmOutput.위험플래그, cutoff)
 
   // 10. 최종 객체 조립
   const final: EvalOutput = {

@@ -29,9 +29,13 @@ export function fillItemScores(items: ItemEval[]): ItemEval[] {
   })
 }
 
+// cutoff는 호출자(pipeline)가 app_config.low_score_cut을 읽어 주입한다.
+// 채점 코어를 순수 함수로 유지하기 위해 process.env를 직접 참조하지 않는다.
+// 폴백 70은 인자 미전달 시 방어용일 뿐, 정본은 app_config다.
 export function calcAggregate(
   items: ItemEval[],
-  flags: RiskFlag[]
+  flags: RiskFlag[],
+  cutoff = 70
 ): { 집계: EvalOutput['집계']; flags: RiskFlag[] } {
   let naBaseSum = 0
   let rawSum = 0
@@ -52,11 +56,20 @@ export function calcAggregate(
       ? Math.round((원점수합 / 적용배점합) * 1000) / 10
       : 0
 
-  const dItems = items.filter(
-    (item) => item.항목코드.startsWith('D') && item.충족수준 !== '해당없음'
-  )
+  // 규칙5: D1~D5 적용배점합이 0(전부 N/A)이면 신규판매 상담이 아니므로 건너뜀
+  const d15BaseSum = items
+    .filter(
+      (item) =>
+        ['D1', 'D2', 'D3', 'D4', 'D5'].includes(item.항목코드) &&
+        item.충족수준 !== '해당없음'
+    )
+    .reduce((s, item) => s + SCORE_TABLE[item.항목코드], 0)
+
   const effectiveFlags: RiskFlag[] = [...flags]
-  if (dItems.length > 0) {
+  if (d15BaseSum > 0) {
+    const dItems = items.filter(
+      (item) => item.항목코드.startsWith('D') && item.충족수준 !== '해당없음'
+    )
     const dBaseSum = dItems.reduce((s, item) => s + SCORE_TABLE[item.항목코드], 0)
     const dScoreSum = dItems.reduce(
       (s, item) => s + itemScore(item.충족수준, SCORE_TABLE[item.항목코드]),
@@ -71,7 +84,6 @@ export function calcAggregate(
     }
   }
 
-  const cutoff = parseFloat(process.env.SCORE_CUTOFF ?? '70')
   const criticalFlagNums = new Set<number>([1, 2, 5, 6])
   const hasCritical = effectiveFlags.some((f) => criticalFlagNums.has(f.규칙번호))
   const isLowScore = 환산총점 < cutoff
