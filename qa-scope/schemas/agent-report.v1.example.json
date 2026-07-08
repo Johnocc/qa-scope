@@ -1,5 +1,5 @@
 {
-  "_comment": "화면④ 상담사 리포트 API 예시 응답. 수치는 프론트 목업(화면4_상담사평가리포트_목업.html, 김상담)과 동일하게 맞춤. 프론트 개발 시 스텁으로 사용 가능.",
+  "_comment": "화면④ 상담사 리포트 API 예시 응답 (계약 v1.2 기준 — 2026-07-08 team_avg_score/rank/agent_count/team_rate 제거, 코칭 도구 철학). 수치는 프론트 목업(김상담)과 동일. 프론트 개발 시 스텁으로 사용 가능.",
   "meta": {
     "agent_id": "AG-003",
     "agent_name": "김상담",
@@ -14,11 +14,8 @@
     "evaluation_count": 145,
     "total_evaluation_count": 1000,
     "avg_score": 73.6,
-    "team_avg_score": 82.4,
     "risk_count": 4,
     "total_risk_count": 12,
-    "rank": 4,
-    "agent_count": 4,
     "weak_domain": {
       "domain_code": "D",
       "domain_name": "보험특화(불완전판매 방지)",
@@ -26,11 +23,11 @@
     }
   },
   "domain_rates": [
-    { "domain_code": "A", "domain_name": "상담 도입", "rate": 90.8, "team_rate": 92.0, "applied_count": 145 },
-    { "domain_code": "B", "domain_name": "업무처리", "rate": 80.8, "team_rate": 85.0, "applied_count": 145 },
-    { "domain_code": "C", "domain_name": "태도·공감", "rate": 77.8, "team_rate": 84.0, "applied_count": 145 },
-    { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "rate": 58.0, "team_rate": 73.0, "applied_count": 52 },
-    { "domain_code": "E", "domain_name": "상담 마무리", "rate": 73.6, "team_rate": 86.0, "applied_count": 145 }
+    { "domain_code": "A", "domain_name": "상담 도입", "rate": 90.8, "applied_count": 145 },
+    { "domain_code": "B", "domain_name": "업무처리", "rate": 80.8, "applied_count": 145 },
+    { "domain_code": "C", "domain_name": "태도·공감", "rate": 77.8, "applied_count": 145 },
+    { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "rate": 58.0, "applied_count": 52 },
+    { "domain_code": "E", "domain_name": "상담 마무리", "rate": 73.6, "applied_count": 145 }
   ],
   "items": [
     { "item_code": "A1", "item_name": "맞이인사 및 소속·성명 밝히기", "domain_code": "A", "max_score": 4, "applied_count": 145, "na_count": 0, "avg_earned": 3.7, "rate": 92.5, "status": "양호" },

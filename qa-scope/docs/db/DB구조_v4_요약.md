@@ -1,7 +1,9 @@
-# DB 필드 구조 요약 (스키마 v3) — 엔진·RAG 담당자용
+# DB 필드 구조 요약 (스키마 v4) — 엔진·RAG 담당자용
 
-> 정본 DDL: `scripts/schema.sql` (= `lib/db/AXDB_v3.sql` 스냅샷) · DBMS: MySQL 8.0 · 스키마명 `qa_scope`
+> 정본 DDL: `scripts/schema.sql` (= `lib/db/AXDB_v4.sql` 스냅샷) · DBMS: MySQL 8.0 · 스키마명 `qa_scope`
 > 이 문서는 채점 파이프라인 관점에서 "어느 단계가 어느 테이블을 읽고 쓰는지"를 중심으로 정리한 것.
+> (파일명의 `v3`는 링크 안정성을 위해 유지 — 내용은 v4 기준. 버전별 변경은 §3 참조.
+> v4의 핵심: **재채점 = 덮어쓰기** — 테이블 구조 변화는 3-E `stage` ENUM 1개뿐, 나머지는 정책·규약)
 
 ---
 
@@ -15,7 +17,7 @@ agents (0. 상담사 마스터) ★v3 신설
         │     ├─< ai_evaluation_details (3-B. 18항목)
         │     │     └─< ai_evaluation_evidences (3-D. 근거 인용) ──→ consultation_dialogues (점프 링크)
         │     └─< ai_evaluation_risk_flags (3-C. 위험 플래그)
-        └─< ai_evaluation_verify_log (3-E. 검증 로그)  ← 3중 안전망 이력 (실패 시도 포함)
+        └─< ai_evaluation_verify_log (3-E. 검증 로그)  ← 3중 안전망 이력 (실패 시도 + ★v4 정본교체 보존 포함)
 
 app_config (설정 — 컷값·임계값)
 ```
@@ -32,9 +34,12 @@ app_config (설정 — 컷값·임계값)
 | ①.5~② 채점 (LLM) | — (DB 접근 없음. RAG는 Chroma) | — |
 | ③④⑤ 3중 검증 | 시도×단계별 로그 기록 (실패 시도 포함) | `ai_evaluation_verify_log` |
 | ⑦ 계산 (코드) | 집계 재계산 — LLM 산수 미신뢰 | (메모리 — 저장은 다음 단계) |
-| ⑧ 저장 | 검증 통과본 1건을 트랜잭션 저장 | `ai_evaluation_master` + `details` + `evidences` + `risk_flags` |
+| ⑧ 저장 | 검증 통과본 1건을 트랜잭션 저장. ★v4: 재채점이면 같은 트랜잭션 안에서 기존 정본을 3-E에 보존 후 삭제(덮어쓰기) | `ai_evaluation_master` + `details` + `evidences` + `risk_flags` (+ 재채점 시 `verify_log`) |
 
-- 저장 진입점: `lib/db/persist.ts → persistEvaluation()` (재채점 시 기존 AI_최종본 삭제 후 교체)
+- 저장 진입점: `lib/db/persist.ts → persistEvaluation()`.
+  ★v4 재채점 덮어쓰기는 `evaluationRepo.saveFinalEvaluation()`이 **트랜잭션 안에서** 처리한다
+  (기존 정본의 `ai_output_json`을 3-E `stage='정본교체'` 행에 보존 → DELETE(자식 CASCADE) → 새로 INSERT).
+  **호출부에서 기존 평가를 미리 지우지 말 것** — 보존 로직이 무력화된다 (persist.ts 머리말 참조)
 - **컷값·임계값은 `app_config`에서 로드** (`lib/db/configRepo.ts`) — 코드 하드코딩 금지
 - **RAG(Chroma)는 MySQL과 무관**: 임베딩·검색 대상은 `docs/rag/`의 약관·상품설명서뿐.
   `docs/hard/`(루브릭·매칭표·N/A규칙)는 인덱싱 금지 — 프롬프트 인라인 전용 (CLAUDE.md §14)
@@ -89,6 +94,12 @@ app_config (설정 — 컷값·임계값)
 
 출력스키마 ver2의 [평가메타/분류/판매정보/집계/고객만족/요약/종합피드백]을 1행에 담는다.
 **UNIQUE(consultation_id, evaluator)** — 상담당 주체별 1건. 모니터링 AI 소견은 여기 안 만들고 3-E 로그로.
+
+> **★v4 재채점 = 덮어쓰기 (팀 결정 2026-07-06):** 같은 (상담, 주체)를 다시 채점하면
+> 기존 행을 3-E에 보존한 뒤 삭제하고 새로 INSERT한다. 전부 한 트랜잭션이라
+> "이전은 지웠는데 새 저장 실패" 공백은 생기지 않는다.
+> ⚠ `evaluation_id`는 재채점마다 **새로 발급**된다 — 외부 참조·북마크 키로 쓰지 말 것
+> (화면①·② API 계약에도 동일 경고 명시).
 
 | 그룹 | 필드 | 타입·설명 |
 |---|---|---|
@@ -155,15 +166,18 @@ app_config (설정 — 컷값·임계값)
 |---|---|---|
 | `log_id` | PK AI | |
 | `consultation_id` | FK→master | 실패 시도도 상담에 귀속 (3-A에 행이 없으므로) |
-| `evaluation_id` | FK→3-A NULL | 최종 통과본 저장 후 역참조로 채움 |
-| `attempt_no` | TINYINT | 채점 시도 회차. UNIQUE(consultation_id, attempt_no, stage) |
-| `stage` | ENUM('형식검증','인용대조','교차검증') | 안전망 ①②③ |
-| `checker` | ENUM('코드','LLM') | ①②=코드, ③=LLM |
+| `evaluation_id` | FK→3-A NULL | 최종 통과본 저장 후 역참조로 채움. `정본교체` 행은 NULL 유지 (가리키던 정본이 삭제됨) |
+| `attempt_no` | TINYINT | 채점 시도 회차. UNIQUE(consultation_id, attempt_no, stage). ★v4: **상담 기준으로 이어 센다** — 재채점 시 1부터 재시작 금지(UNIQUE 충돌). 다음 회차는 `verifyLogRepo.getNextAttemptNo()`로 받을 것 |
+| `stage` | ENUM('형식검증','인용대조','교차검증',★v4 '정본교체') | 안전망 ①②③ + 정본교체(재채점 덮어쓰기로 폐기된 이전 정본의 보존 행) |
+| `checker` | ENUM('코드','LLM') | ①②=코드, ③=LLM (정본교체=코드) |
 | `checker_model` | VARCHAR(60) NULL | ③단계 검증 LLM 모델명 |
 | `passed` | TINYINT(1) | |
-| `issues` | TEXT NULL | 발견 문제 (형식 위반·불일치 인용·2차 LLM 이견) |
-| `candidate_json` | JSON NULL | 해당 시도의 1차 채점 JSON (재시도 원인 추적용) |
+| `issues` | TEXT NULL | 발견 문제 (형식 위반·불일치 인용·2차 LLM 이견). `정본교체` 행은 폐기 정본의 요약(evaluation_id·final_score·status_label 등) |
+| `candidate_json` | JSON NULL | 해당 시도의 1차 채점 JSON (재시도 원인 추적용). `정본교체` 행은 **폐기된 정본의 `ai_output_json` 전문** |
 | `created_at` | DATETIME | |
+
+> 기존 v3 DB는 `scripts/schema.sql` 하단의 v4 마이그레이션 블록이 `stage` ENUM에
+> `'정본교체'`를 조건부 ALTER로 추가한다 (ENUM 끝 값 추가 = MySQL 8 무중단, 재실행 안전).
 
 ### `app_config` — 설정 (담당자 조정 가능 파라미터)
 
@@ -175,7 +189,18 @@ app_config (설정 — 컷값·임계값)
 
 ---
 
-## 3. v2 → v3 변경 요약 (2026-07-05)
+## 3. 버전 변경 요약 (누적 보존)
+
+### v3 → v4 (2026-07-06 — 재채점 덮어쓰기 정책)
+
+1. **재채점 = 덮어쓰기** — 상담당 (consultation_id, evaluator) 정본 1건 유지.
+   `evaluationRepo.saveFinalEvaluation()`이 기존 정본을 3-E에 보존 후 삭제 → 새로 저장 (한 트랜잭션)
+2. `ai_evaluation_verify_log.stage` ENUM에 `'정본교체'` 추가 — 폐기 정본의 원본 전문을
+   `candidate_json`에 보존 (기존 DB는 schema.sql 하단 마이그레이션 블록이 조건부 ALTER)
+3. `attempt_no` 이어 세기 규약 명문화 — 재채점 시 1부터 재시작 금지, `verifyLogRepo.getNextAttemptNo()` 사용
+4. (스키마 외) `evaluation_id`는 재채점마다 재발급 — 외부 참조 키 사용 금지 (화면①·② API 계약에 명시)
+
+### v2 → v3 (2026-07-05)
 
 1. `agents` 테이블 신설 + 명부 시드 (화면③·④용)
 2. `consultation_master.agent_id` FK 전환 — 기존 DB는 schema.sql 재실행 시 자동 이행(백필 포함), 엔진 코드는 `persist.ts`의 `ensureAgent()` 보강으로 무영향

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>화면③ 상담사별 대시보드 — 목업</title>
+<style>
+  :root{
+    --bg:#f6f4ee; --card:#ffffff; --border:#e7e2d3; --text:#2b2a26; --sub:#8a8578;
+    --danger-bg:#f8e9e7; --danger-text:#b5473f;
+    --ok-bg:#eef1e2; --ok-text:#7a8450;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--text);padding:28px;}
+  .shell{max-width:1080px;margin:0 auto;}
+  .mock-banner{background:#fff3cd;border:1px solid #f0e0a0;color:#7a5c00;font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:16px;line-height:1.7;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .tab{padding:9px 16px;border-radius:999px;font-size:14px;color:var(--sub);border:1px solid transparent;text-decoration:none;}
+  .tab.active{background:var(--text);color:#fff;font-weight:600;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;}
+  .stat-card .label{font-size:12px;color:var(--sub);margin-bottom:6px;}
+  .stat-card .value{font-size:26px;font-weight:700;}
+  .stat-card .sub{font-size:12px;color:var(--sub);margin-top:4px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--sub);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.02em;padding:10px;border-bottom:1px solid var(--border);}
+  td{padding:12px 10px;border-bottom:1px solid #f0ede3;vertical-align:middle;}
+  .agent-name{font-weight:700;color:var(--text);text-decoration:underline;cursor:pointer;}
+  .bar-wrap{width:140px;height:8px;background:#eee9db;border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px;}
+  .bar-fill{height:100%;border-radius:99px;background:#7a8450;}
+  .risk-count{font-weight:700;}
+  .risk-count.has-risk{color:var(--danger-text);}
+  .weak-none{color:var(--sub);}
+
+  .coach-note{
+    margin-top:16px;background:#f1efe6;border-radius:12px;padding:12px 16px;
+    font-size:13px;color:var(--text);
+  }
+
+  .footnote{font-size:11px;color:var(--sub);margin-top:16px;line-height:1.7;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;font-size:13px;padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="mock-banner">
+    ⚠ 목업 — 김상담(AG-003) 수치는 화면④ 예시(<code>agent-report.v1.example.json</code>)와 동일하게 맞췄습니다. 나머지 3명은 화면 구성 확인용 가상 데이터입니다.
+    상단 요약 4개는 전부 아래 표의 값에서 코드가 직접 합산·계산한 값입니다(따로 하드코딩 안 함 — 표와 숫자가 어긋나지 않게).
+  </div>
+
+  <div class="tabs">
+    <a class="tab" href="화면1_채점결과목록_목업.html">채점 결과 목록</a>
+    <a class="tab" href="화면2_채점상세_목업.html">채점 상세</a>
+    <a class="tab active" href="#">상담사별 대시보드</a>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="label">전체 평균</div><div class="value" id="statAvg">-</div><div class="sub">건 단위 가중평균</div></div>
+    <div class="stat-card"><div class="label">채점 건수</div><div class="value" id="statCount">-</div><div class="sub">표시된 상담사 합계</div></div>
+    <div class="stat-card"><div class="label">위험 건</div><div class="value" id="statRisk">-</div><div class="sub">상담사 합계</div></div>
+    <div class="stat-card"><div class="label">상담사 수</div><div class="value" id="statAgents">-</div><div class="sub">평가 1건 이상 보유</div></div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>상담사</th><th>건수</th><th>평균점수</th><th>위험</th><th>약점 항목</th><th></th></tr></thead>
+      <tbody id="agentTable"></tbody>
+    </table>
+    <div class="coach-note">💡 이름을 클릭하면 개인 리포트(화면④)로 이동해 스파이더 차트·개선 필요 항목·코칭 근거를 볼 수 있습니다.</div>
+  </div>
+
+  <p class="footnote">
+    * "약점 항목"은 화면④와 같은 규칙(적용 건수가 있는 영역 중 달성률 최저 영역, 동률이면 배점 합이 큰 영역 우선: D30&gt;B26&gt;C18&gt;E14&gt;A12)으로 서버가 계산해 내려주는 값이라는 전제입니다.<br>
+    * 데이터 출처: 루브릭 v1.5 / 출력스키마 ver2. 김상담 외 3명은 화면 레이아웃 확인용 가상 수치.
+  </p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   AGENTS: 상담사별 집계 요약. 김상담(AG-003)만 화면④와 동일한 실제 스텁 데이터.
+   실 연동 시: fetch('/api/agents/summary?period=...') 같은 걸로 교체(계약 문서 필요).
+============================================================ */
+const AGENTS = [
+  { agent_id: "AG-001", name: "최상담", count: 132, avg_score: 93.0, risk_count: 0, weak_domain_label: null },
+  { agent_id: "AG-002", name: "박상담", count: 118, avg_score: 86.0, risk_count: 1, weak_domain_label: "상담 도입" },
+  { agent_id: "AG-003", name: "김상담", count: 145, avg_score: 73.6, risk_count: 4, weak_domain_label: "불완전판매 고지" },
+  { agent_id: "AG-004", name: "이상담", count: 121, avg_score: 69.0, risk_count: 5, weak_domain_label: "태도·공감" },
+];
+// 실제 화면④ 예시 데이터가 있는 상담사만 진짜 링크로 연결
+const HAS_REPORT_DEMO = new Set(["AG-003"]);
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function render(){
+  const totalCount = AGENTS.reduce((s,a)=>s+a.count, 0);
+  const totalRisk = AGENTS.reduce((s,a)=>s+a.risk_count, 0);
+  const weightedAvg = AGENTS.reduce((s,a)=>s+a.count*a.avg_score, 0) / totalCount;
+
+  document.getElementById("statAvg").textContent = weightedAvg.toFixed(1);
+  document.getElementById("statCount").textContent = totalCount;
+  document.getElementById("statRisk").textContent = totalRisk;
+  document.getElementById("statAgents").textContent = AGENTS.length;
+
+  const tbody = document.getElementById("agentTable");
+  tbody.innerHTML = AGENTS.map(a => `
+    <tr>
+      <td><span class="agent-name" data-id="${a.agent_id}" data-name="${a.name}">${a.name}</span></td>
+      <td>${a.count}건</td>
+      <td><span class="bar-wrap"><span class="bar-fill" style="width:${a.avg_score}%;"></span></span>${a.avg_score.toFixed(1)}</td>
+      <td class="risk-count ${a.risk_count>0?'has-risk':''}">${a.risk_count}</td>
+      <td>${a.weak_domain_label ? a.weak_domain_label : '<span class="weak-none">없음</span>'}</td>
+      <td></td>
+    </tr>
+  `).join("");
+
+  tbody.querySelectorAll(".agent-name").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const id = el.getAttribute("data-id");
+      if(HAS_REPORT_DEMO.has(id)){
+        window.location.href = "화면4_상담사평가리포트_목업.html";
+      } else {
+        toast(`목업: ${el.getAttribute("data-name")}님의 개인 리포트 예시 데이터는 아직 없습니다 (데모: 김상담만 지원)`);
+      }
+    });
+  });
+}
+
+try {
+  render();
+} catch (err) {
+  console.error("렌더링 오류:", err);
+  document.querySelector(".shell").insertAdjacentHTML(
+    "afterbegin",
+    `<div class="mock-banner" style="background:#f8e9e7;border-color:#edcfcb;color:#b5473f;">⚠ 렌더링 오류: ${err.message}</div>`
+  );
+}
+</script>
+</body>
+</html>
