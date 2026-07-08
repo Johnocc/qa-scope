@@ -40,6 +40,10 @@
     margin-top:16px;background:#f1efe6;border-radius:12px;padding:12px 16px;
     font-size:13px;color:var(--text);
   }
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .period-note{font-size:12px;color:var(--sub);}
+  select.filter{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text);}
+  .agent-name.disabled{text-decoration:none;color:var(--sub);cursor:default;font-weight:400;}
 
   .footnote{font-size:11px;color:var(--sub);margin-top:16px;line-height:1.7;}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;font-size:13px;padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;}
@@ -50,8 +54,10 @@
 <div class="shell">
 
   <div class="mock-banner">
-    ⚠ 목업 — 김상담(AG-003) 수치는 화면④ 예시(<code>agent-report.v1.example.json</code>)와 동일하게 맞췄습니다. 나머지 3명은 화면 구성 확인용 가상 데이터입니다.
-    상단 요약 4개는 전부 아래 표의 값에서 코드가 직접 합산·계산한 값입니다(따로 하드코딩 안 함 — 표와 숫자가 어긋나지 않게).
+    ⚠ 목업 — 우현님 확정 계약 <code>화면3_상담사대시보드_API계약_v1.md</code> 기준으로 갱신했습니다.
+    화면④와 집계 정본을 공유해서(결정2) 김상담(AG-003) 행은 화면④ 예시와 완전히 같은 값입니다. 나머지는 화면 구성 확인용 가상 데이터.
+    <b>상단 요약 4개는 이제 표에서 합산하지 않고, 서버가 내려준 <code>summary</code> 값을 그대로 표시</b>합니다(결정 §3.2 — 페이지네이션·행 생략에도 카드 숫자가 안 흔들리게).
+    화면④처럼 <code>period</code> 선택도 추가됐고, "미배정" 행도 포함합니다(결정6 — 전량 채점 원칙).
   </div>
 
   <div class="tabs">
@@ -60,11 +66,20 @@
     <a class="tab active" href="#">상담사별 대시보드</a>
   </div>
 
+  <div class="topbar">
+    <span class="period-note" id="periodNote"></span>
+    <select class="filter" id="periodSelect">
+      <option value="30d">최근 30일</option>
+      <option value="90d">최근 90일</option>
+      <option value="all">전체 기간</option>
+    </select>
+  </div>
+
   <div class="stat-grid">
-    <div class="stat-card"><div class="label">전체 평균</div><div class="value" id="statAvg">-</div><div class="sub">건 단위 가중평균</div></div>
-    <div class="stat-card"><div class="label">채점 건수</div><div class="value" id="statCount">-</div><div class="sub">표시된 상담사 합계</div></div>
-    <div class="stat-card"><div class="label">위험 건</div><div class="value" id="statRisk">-</div><div class="sub">상담사 합계</div></div>
-    <div class="stat-card"><div class="label">상담사 수</div><div class="value" id="statAgents">-</div><div class="sub">평가 1건 이상 보유</div></div>
+    <div class="stat-card"><div class="label">전체 평균</div><div class="value" id="statAvg">-</div><div class="sub">건 단위 평균(화면④ team_avg_score와 동일 수식)</div></div>
+    <div class="stat-card"><div class="label">채점 건수</div><div class="value" id="statCount">-</div><div class="sub">기간 내 전체</div></div>
+    <div class="stat-card"><div class="label">위험 건</div><div class="value" id="statRisk">-</div><div class="sub">기간 내 전체</div></div>
+    <div class="stat-card"><div class="label">상담사 수</div><div class="value" id="statAgents">-</div><div class="sub">평가 1건 이상 보유(미배정 포함)</div></div>
   </div>
 
   <div class="card">
@@ -76,8 +91,9 @@
   </div>
 
   <p class="footnote">
-    * "약점 항목"은 화면④와 같은 규칙(적용 건수가 있는 영역 중 달성률 최저 영역, 동률이면 배점 합이 큰 영역 우선: D30&gt;B26&gt;C18&gt;E14&gt;A12)으로 서버가 계산해 내려주는 값이라는 전제입니다.<br>
-    * 데이터 출처: 루브릭 v1.5 / 출력스키마 ver2. 김상담 외 3명은 화면 레이아웃 확인용 가상 수치.
+    * "약점 항목"(<code>weak_domain</code>)은 화면④와 완전히 같은 규칙·값입니다(적용 건수가 있는 영역 중 달성률 최저 영역, 동률이면 배점 합이 큰 영역 우선: D30&gt;B26&gt;C18&gt;E14&gt;A12). 영역 표시명 매핑은 A=상담 도입/B=업무처리/C=공감·경청/D=불완전판매 고지/E=상담 마무리.<br>
+    * 표 정렬은 평균점수 내림차순(결정5) — 이름 클릭 시 같은 <code>period</code>로 화면④에 진입해 여기서 본 수치가 그대로 재현됩니다(결정7).<br>
+    * 데이터 출처: 루브릭 v1.5 / 출력스키마 ver2. 김상담 외 수치는 화면 레이아웃 확인용 가상 데이터.
   </p>
 </div>
 
@@ -85,14 +101,34 @@
 
 <script>
 /* ============================================================
-   AGENTS: 상담사별 집계 요약. 김상담(AG-003)만 화면④와 동일한 실제 스텁 데이터.
-   실 연동 시: fetch('/api/agents/summary?period=...') 같은 걸로 교체(계약 문서 필요).
+   화면3_상담사대시보드_API계약_v1.md 정본 반영: { meta, summary, agents } 3블록.
+   summary는 서버가 이미 계산해 내려준 값 — 프론트는 표에서 다시 합산(reduce)하지 않는다(결정 §3.2, 남은일).
+   weak_domain은 화면④ §3.2와 동일 객체·규칙(결정4). unknown(미배정) 행 포함(결정6).
+   실 연동 시: fetch(`/api/agents/summary?period=${period}`)로 교체.
 ============================================================ */
+const META = {
+  period: "30d",
+  period_from: "2026-06-05",
+  period_to: "2026-07-05",
+  rubric_version: "v1.5"
+};
+
+// 아래 값들은 실제로는 서버가 계산해 내려주는 summary 블록. 목업이라 미리 계산해 상수로 박아둠
+// (agents 배열과 합이 맞는지는 제가 직접 검산: 132+118+145+121+12=528, 위험 0+1+4+5+2=12, 평균 42297/528=80.1).
+const SUMMARY = {
+  avg_score: 80.1,
+  evaluation_count: 528,
+  risk_count: 12,
+  agent_count: 5
+};
+
 const AGENTS = [
-  { agent_id: "AG-001", name: "최상담", count: 132, avg_score: 93.0, risk_count: 0, weak_domain_label: null },
-  { agent_id: "AG-002", name: "박상담", count: 118, avg_score: 86.0, risk_count: 1, weak_domain_label: "상담 도입" },
-  { agent_id: "AG-003", name: "김상담", count: 145, avg_score: 73.6, risk_count: 4, weak_domain_label: "불완전판매 고지" },
-  { agent_id: "AG-004", name: "이상담", count: 121, avg_score: 69.0, risk_count: 5, weak_domain_label: "태도·공감" },
+  { agent_id: "AG-001", agent_name: "최상담", evaluation_count: 132, avg_score: 93.0, risk_count: 0, weak_domain: null },
+  { agent_id: "AG-002", agent_name: "박상담", evaluation_count: 118, avg_score: 86.0, risk_count: 1, weak_domain: { domain_code: "A", domain_name: "상담 도입", label: "상담 도입" } },
+  { agent_id: "AG-003", agent_name: "김상담", evaluation_count: 145, avg_score: 73.6, risk_count: 4, weak_domain: { domain_code: "D", domain_name: "보험특화(불완전판매 방지)", label: "불완전판매 고지" } },
+  { agent_id: "AG-004", agent_name: "이상담", evaluation_count: 121, avg_score: 69.0, risk_count: 5, weak_domain: { domain_code: "C", domain_name: "태도·공감", label: "공감·경청" } },
+  // 미배정(unknown) — 결정6: 전량 채점 원칙상 빠지면 안 됨. 리포트 링크는 비활성.
+  { agent_id: "unknown", agent_name: "미배정", evaluation_count: 12, avg_score: 71.0, risk_count: 2, weak_domain: null },
 ];
 // 실제 화면④ 예시 데이터가 있는 상담사만 진짜 링크로 연결
 const HAS_REPORT_DEMO = new Set(["AG-003"]);
@@ -104,36 +140,49 @@ function toast(msg){
 }
 
 function render(){
-  const totalCount = AGENTS.reduce((s,a)=>s+a.count, 0);
-  const totalRisk = AGENTS.reduce((s,a)=>s+a.risk_count, 0);
-  const weightedAvg = AGENTS.reduce((s,a)=>s+a.count*a.avg_score, 0) / totalCount;
+  document.getElementById("periodNote").textContent =
+    `${META.period_from} ~ ${META.period_to} · 루브릭 ${META.rubric_version}`;
+  document.getElementById("periodSelect").value = META.period;
 
-  document.getElementById("statAvg").textContent = weightedAvg.toFixed(1);
-  document.getElementById("statCount").textContent = totalCount;
-  document.getElementById("statRisk").textContent = totalRisk;
-  document.getElementById("statAgents").textContent = AGENTS.length;
+  // summary는 서버 직값 표시 — 표에서 다시 합산하지 않는다(계약 §3.2)
+  document.getElementById("statAvg").textContent = SUMMARY.avg_score.toFixed(1);
+  document.getElementById("statCount").textContent = SUMMARY.evaluation_count;
+  document.getElementById("statRisk").textContent = SUMMARY.risk_count;
+  document.getElementById("statAgents").textContent = SUMMARY.agent_count;
 
+  // agents는 이미 평균점수 내림차순으로 온다고 가정(결정5) — 프론트에서 재정렬 안 함
   const tbody = document.getElementById("agentTable");
-  tbody.innerHTML = AGENTS.map(a => `
+  tbody.innerHTML = AGENTS.map(a => {
+    const isUnknown = a.agent_id === "unknown";
+    const nameCell = isUnknown
+      ? `<span class="agent-name disabled">${a.agent_name}</span>`
+      : `<span class="agent-name" data-id="${a.agent_id}" data-name="${a.agent_name}">${a.agent_name}</span>`;
+    return `
     <tr>
-      <td><span class="agent-name" data-id="${a.agent_id}" data-name="${a.name}">${a.name}</span></td>
-      <td>${a.count}건</td>
+      <td>${nameCell}</td>
+      <td>${a.evaluation_count}건</td>
       <td><span class="bar-wrap"><span class="bar-fill" style="width:${a.avg_score}%;"></span></span>${a.avg_score.toFixed(1)}</td>
       <td class="risk-count ${a.risk_count>0?'has-risk':''}">${a.risk_count}</td>
-      <td>${a.weak_domain_label ? a.weak_domain_label : '<span class="weak-none">없음</span>'}</td>
+      <td>${a.weak_domain ? a.weak_domain.label : '<span class="weak-none">없음</span>'}</td>
       <td></td>
-    </tr>
-  `).join("");
+    </tr>`;
+  }).join("");
 
-  tbody.querySelectorAll(".agent-name").forEach(el=>{
+  tbody.querySelectorAll(".agent-name:not(.disabled)").forEach(el=>{
     el.addEventListener("click", ()=>{
       const id = el.getAttribute("data-id");
       if(HAS_REPORT_DEMO.has(id)){
-        window.location.href = "화면4_상담사평가리포트_목업.html";
+        // 결정7: period를 그대로 전달해서 ③에서 본 수치가 ④에서 재현되게
+        window.location.href = `화면4_상담사평가리포트_목업.html?period=${META.period}`;
       } else {
         toast(`목업: ${el.getAttribute("data-name")}님의 개인 리포트 예시 데이터는 아직 없습니다 (데모: 김상담만 지원)`);
       }
     });
+  });
+
+  document.getElementById("periodSelect").addEventListener("change", (e) => {
+    // TODO: 실 연동 시 fetch(`/api/agents/summary?period=${e.target.value}`) 재호출
+    toast(`목업이라 기간 변경은 재조회되지 않습니다 — 선택값: ${e.target.value}`);
   });
 }
 

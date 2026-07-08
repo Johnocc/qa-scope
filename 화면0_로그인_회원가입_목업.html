@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>화면⓪ 로그인 · 회원가입 — 목업</title>
+<title>화면⓪ 로그인 — 목업</title>
 <style>
   :root{
     --bg:#f6f4ee;
@@ -40,17 +40,7 @@
   .brand .logo{font-size:15px;font-weight:700;color:var(--sub);letter-spacing:.02em;}
   .brand h1{font-size:19px;margin:6px 0 0;}
 
-  .switch{
-    display:flex;background:#f1efe6;border-radius:10px;padding:3px;margin-bottom:22px;
-  }
-  .switch button{
-    flex:1;border:none;background:transparent;padding:9px 0;border-radius:8px;
-    font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;
-  }
-  .switch button.active{background:var(--text);color:#fff;}
-
   form{display:flex;flex-direction:column;gap:14px;}
-  form.hidden{display:none;}
   label{font-size:12px;color:var(--sub);font-weight:600;margin-bottom:4px;display:block;}
   input{
     width:100%;border:1px solid var(--border);border-radius:10px;
@@ -58,7 +48,6 @@
   }
   input:focus{outline:2px solid #2b2a2622;border-color:#c9c4b4;}
   .field-row{display:flex;flex-direction:column;}
-  .hint{font-size:11px;color:var(--sub);margin-top:3px;}
 
   .btn-primary{
     margin-top:6px;background:var(--text);color:#fff;border:none;
@@ -66,12 +55,10 @@
   }
   .btn-primary:hover{opacity:.92;}
 
-  .minor-row{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:2px;}
+  .minor-row{display:flex;justify-content:flex-end;font-size:12px;color:var(--sub);margin-top:2px;}
   .minor-row a{color:var(--sub);text-decoration:underline;cursor:pointer;}
 
   .divider{border-top:1px solid var(--border);margin:20px 0 14px;}
-  .switch-note{text-align:center;font-size:13px;color:var(--sub);}
-  .switch-note a{color:var(--text);font-weight:700;cursor:pointer;text-decoration:underline;}
 
   .role-note{
     margin-top:16px;font-size:11px;color:var(--sub);background:#f1efe6;
@@ -93,23 +80,17 @@
 <body>
 
   <div class="mock-banner">
-    ⚠ 목업(신규 화면) — 조장 피드백 반영: 기존 4화면 명세엔 없었지만 로그인/회원가입은 필수라 추가했습니다.
-    실제 인증 로직은 없고 화면 전환만 됩니다. <b>관리자 모드(역할 분리)는 이번 범위에서 빼고 확장 요소로 후순위</b>로 미뤘습니다 — 지금은 평가담당자 단일 역할만 가정합니다.
+    ⚠ 목업 — 조원 확정 피드백 반영: 회원가입 폼 제거했습니다. 사내 툴이라 계정은 관리자가 발급하는 구조가 맞고, 셀프 가입은 부적합하다는 결론입니다.
+    실제 인증 로직은 아직 없고 화면 전환만 됩니다(백엔드 몫). <b>이 화면은 지금 상태로 두고 추가 수정하지 않기로 했습니다.</b>
   </div>
 
   <div class="auth-card">
     <div class="brand">
       <div class="logo">한빛생명 · QA Scope</div>
-      <h1 id="cardTitle">로그인</h1>
+      <h1>로그인</h1>
     </div>
 
-    <div class="switch">
-      <button id="tabLogin" class="active" onclick="showForm('login')">로그인</button>
-      <button id="tabSignup" onclick="showForm('signup')">회원가입</button>
-    </div>
-
-    <!-- 로그인 폼 -->
-    <form id="loginForm" onsubmit="return handleSubmit(event, '로그인');">
+    <form id="loginForm" onsubmit="return handleSubmit(event);">
       <div class="field-row">
         <label for="loginEmail">이메일</label>
         <input id="loginEmail" type="email" placeholder="name@hanbit-life.example" required>
@@ -119,68 +100,24 @@
         <input id="loginPw" type="password" placeholder="••••••••" required>
       </div>
       <div class="minor-row">
-        <span></span>
         <a onclick="toast('목업: 비밀번호 재설정 화면은 범위 밖')">비밀번호를 잊으셨나요?</a>
       </div>
       <button type="submit" class="btn-primary">로그인</button>
     </form>
 
-    <!-- 회원가입 폼 -->
-    <form id="signupForm" class="hidden" onsubmit="return handleSubmit(event, '회원가입');">
-      <div class="field-row">
-        <label for="suName">이름</label>
-        <input id="suName" type="text" placeholder="홍길동" required>
-      </div>
-      <div class="field-row">
-        <label for="suTeam">소속</label>
-        <input id="suTeam" type="text" placeholder="QA팀 · 지점명 등" required>
-      </div>
-      <div class="field-row">
-        <label for="suEmail">이메일</label>
-        <input id="suEmail" type="email" placeholder="name@hanbit-life.example" required>
-      </div>
-      <div class="field-row">
-        <label for="suPw">비밀번호</label>
-        <input id="suPw" type="password" placeholder="8자 이상" required>
-      </div>
-      <div class="field-row">
-        <label for="suPw2">비밀번호 확인</label>
-        <input id="suPw2" type="password" placeholder="다시 입력" required>
-        <div class="hint" id="pwHint"></div>
-      </div>
-      <button type="submit" class="btn-primary">가입하기</button>
-    </form>
-
     <div class="divider"></div>
-    <div class="switch-note" id="switchNote">
-      계정이 없으신가요? <a onclick="showForm('signup')">회원가입</a>
-    </div>
-
     <div class="role-note">
-      역할은 현재 "평가담당자" 단일 역할만 가정합니다. 관리자(문서 편집 등) 권한 분리는 확장 요소로, 이번 목업 범위에는 없습니다.
+      계정은 관리자가 발급합니다(셀프 회원가입 없음). 역할은 현재 "평가담당자" 단일 역할만 가정합니다.
     </div>
   </div>
 
   <div class="flow-note">
-    로그인 성공 → <b>화면① 채점 결과 목록</b>으로 이동합니다.<br>
-    회원가입 완료 → 로그인 화면으로 돌아갑니다(자동 로그인 없음, 목업 기준).
+    로그인 성공 → <b>화면① 채점 결과 목록</b>으로 이동합니다.
   </div>
 
   <div class="toast" id="toast"></div>
 
 <script>
-function showForm(which){
-  const isLogin = which === 'login';
-  document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
-  document.getElementById('signupForm').classList.toggle('hidden', isLogin);
-  document.getElementById('tabLogin').classList.toggle('active', isLogin);
-  document.getElementById('tabSignup').classList.toggle('active', !isLogin);
-  document.getElementById('cardTitle').textContent = isLogin ? '로그인' : '회원가입';
-  document.getElementById('switchNote').innerHTML = isLogin
-    ? '계정이 없으신가요? <a onclick="showForm(\'signup\')">회원가입</a>'
-    : '이미 계정이 있으신가요? <a onclick="showForm(\'login\')">로그인</a>';
-}
-
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -188,24 +125,11 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'), 1800);
 }
 
-function handleSubmit(e, kind){
+function handleSubmit(e){
   e.preventDefault();
-  if(kind === '회원가입'){
-    const pw = document.getElementById('suPw').value;
-    const pw2 = document.getElementById('suPw2').value;
-    if(pw !== pw2){
-      document.getElementById('pwHint').textContent = '비밀번호가 일치하지 않습니다.';
-      document.getElementById('pwHint').style.color = '#b5473f';
-      return false;
-    }
-    document.getElementById('pwHint').textContent = '';
-    toast('목업: 실제 가입 처리는 없습니다 — 로그인 화면으로 전환');
-    setTimeout(()=>showForm('login'), 800);
-  } else {
-    // 실제 인증은 없지만, 화면①이 이미 있으니 실제로 이동시켜 흐름을 확인할 수 있게 함.
-    toast('목업: 실제 인증 없이 화면①로 이동합니다');
-    setTimeout(()=>{ window.location.href = "화면1_채점결과목록_목업.html"; }, 600);
-  }
+  // 실제 인증은 없지만, 화면①이 이미 있으니 실제로 이동시켜 흐름을 확인할 수 있게 함.
+  toast('목업: 실제 인증 없이 화면①로 이동합니다');
+  setTimeout(()=>{ window.location.href = "화면1_채점결과목록_목업.html"; }, 600);
   return false;
 }
 </script>
