@@ -134,14 +134,10 @@ export async function scoreConsultation(
       }
     }
 
-    // 평가메타: 여분 키 제거 (pipeline이 최종 조립 시 덮어쓰므로 허용 키만 남김)
-    if (obj['평가메타'] !== null && typeof obj['평가메타'] === 'object') {
-      const meta = obj['평가메타'] as Record<string, unknown>
-      const allowedMetaKeys = new Set(['평가주체', 'AI모델', '루브릭버전', '평가일시'])
-      for (const key of Object.keys(meta)) {
-        if (!allowedMetaKeys.has(key)) delete meta[key]
-      }
-    }
+    // 평가메타: 통째 제거 (10단계에서 코드가 새로 조립해 덮어쓰므로 LLM 값은 불필요).
+    //   여분키 필터링 방식은 평가일시:null 같은 '허용 키의 잘못된 값'을 못 걸러
+    //   검증에서 죽었다(dummy_02). 통째 지우면 그 경로가 원천 차단된다.
+    delete obj['평가메타']
 
     // ※ 요약·종합피드백은 LLM이 생성하는 콘텐츠라 코드가 재생성하지 않는다.
     //   누락 시 ''로 백필하면 '빈 평가'가 그대로 저장되므로, 백필하지 않고

@@ -18,6 +18,7 @@ export async function get(key: string, fallback: string | null = null): Promise<
 
 export async function getNumber(key: string, fallback: number): Promise<number> {
   const v = await get(key, null);
+  if (v === null || v === '') return fallback; // Number(null)·Number('')는 NaN이 아니라 0 — 변환 전 차단
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 }
