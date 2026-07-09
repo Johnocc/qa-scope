@@ -86,7 +86,7 @@ services:
   # 벡터 DB — RAG 참조문서(docs/rag/) 임베딩 검색
   # -------------------------------------------------------------------
   chroma:
-    image: chromadb/chroma:0.5.5
+    image: chromadb/chroma:1.0.6
     container_name: qa-chroma
     restart: unless-stopped
     environment:
