@@ -145,3 +145,6 @@ vite.config.ts.timestamp-*
 # 채점 결과 로컬 저장물 (커밋 금지)
 **/results/*.json
 **/outputs/
+
+# 세션 상태 파일
+.omc/
