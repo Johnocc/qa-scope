@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "db:schema": "node scripts/apply-schema.js",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed-edge": "tsx scripts/seed-edge-cases.ts",
+    "verify:consistency": "tsx scripts/verify-consistency.ts"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",

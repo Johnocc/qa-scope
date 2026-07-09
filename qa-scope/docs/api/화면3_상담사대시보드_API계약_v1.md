@@ -135,11 +135,15 @@ GET /api/agents/summary?period=30d
 
 ## 6. 남은 일 (이 계약과 연결된 후속 작업)
 
-- [ ] `GET /api/agents/summary` 라우트 + 집계 구현 —
+- [x] `GET /api/agents/summary` 라우트 + 집계 구현 —
       `lib/db/agentReportRepo.ts`의 기간 파싱(`periodFromDate`)·집계 쿼리·
       `weak_domain` 선정 로직을 **재사용**할 것 (별도 재구현 금지 — ③↔④ 불일치 방지)
+      (2026-07-09 완료 — 약점 선정을 순수 함수 `selectWeakDomain()`으로 분리해 ③·④ 공유,
+      `buildAgentsSummary()` 신설. 프론트 스텁: `schemas/agents-summary.v1.example.json`)
 - [ ] 화면③ 목업 이식 시 프론트 측 합산(`reduce`) 제거 → `summary` 값 직표시로 교체
-- [ ] §4 정합 표를 시드 데이터 통합 테스트 케이스로 등록
+- [x] §4 정합 표를 시드 데이터 통합 테스트 케이스로 등록
+      (2026-07-09 완료 — `npm run verify:consistency` = `scripts/verify-consistency.ts`,
+      period=all 기준 ①③④ 대조 + 병기 규칙 + §10.4 케이스 존재 확인)
 
 ## 7. 변경 이력
 
