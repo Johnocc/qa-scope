@@ -31,7 +31,14 @@ export interface SaveOptions {
 }
 
 export interface DashboardQuery {
+  /** 상담일(consulted_at) 범위 — 'YYYY-MM-DD'. to는 그 날 하루를 포함(< to+1일) */
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  agentId?: string | null;
+  consultType?: string | null;
   statusLabel?: string | null;
+  /** 'risk' = 위험·저점 우선(계약 결정 4, 기본) / 'date' = 상담일 최신순 */
+  sort?: 'risk' | 'date';
   limit?: number;
   offset?: number;
 }
@@ -279,27 +286,98 @@ export async function getFullEvaluation(evaluationId: number): Promise<any | nul
   };
 }
 
-/**
- * 목록 화면(화면①)용 조회.
- * 정렬 정책: 불완전판매 의심 우선 → 저점수 → 정상, 그 안에서 점수 낮은 순.
- */
-export async function listForDashboard({
+/** 화면① 필터 → WHERE 절 조각 + 파라미터 (list·filtered_count가 동일 조각 공유 — 수치 불일치 방지) */
+function dashboardWhere({
+  dateFrom = null,
+  dateTo = null,
+  agentId = null,
+  consultType = null,
   statusLabel = null,
-  limit = 50,
-  offset = 0,
-}: DashboardQuery = {}): Promise<any[]> {
-  const where = statusLabel ? 'WHERE m.status_label = ?' : '';
-  const params: any[] = statusLabel ? [statusLabel, limit, offset] : [limit, offset];
+}: DashboardQuery): { sql: string; params: any[] } {
+  const conds: string[] = [`m.evaluator = 'AI_최종'`];
+  const params: any[] = [];
+  if (dateFrom) {
+    conds.push('c.consulted_at >= ?');
+    params.push(dateFrom);
+  }
+  if (dateTo) {
+    // 상담일 기준 to 포함 (consulted_at은 DATETIME이므로 다음날 0시 미만)
+    conds.push('c.consulted_at < DATE_ADD(?, INTERVAL 1 DAY)');
+    params.push(dateTo);
+  }
+  if (agentId) {
+    conds.push('c.agent_id = ?');
+    params.push(agentId);
+  }
+  if (consultType) {
+    conds.push('m.consult_type_ai = ?');
+    params.push(consultType);
+  }
+  if (statusLabel) {
+    conds.push('m.status_label = ?');
+    params.push(statusLabel);
+  }
+  return { sql: `WHERE ${conds.join(' AND ')}`, params };
+}
+
+/**
+ * 목록 화면(화면①)용 조회 — 정본 계약: docs/api/화면1_채점결과목록_API계약_v1.md
+ * 기본 정렬(sort=risk, 계약 결정 4): risk_flagged DESC → 상태라벨 순위
+ * (불완전판매 의심 → 저점수 → 정상) → final_score ASC. sort=date는 상담일 최신순.
+ * agents JOIN으로 agent_name 제공 (unknown 행은 명부에 '미배정'으로 시드됨).
+ */
+export async function listForDashboard(q: DashboardQuery = {}): Promise<any[]> {
+  const { sort = 'risk', limit = 50, offset = 0 } = q;
+  const where = dashboardWhere(q);
+  const orderBy =
+    sort === 'date'
+      ? 'c.consulted_at DESC, m.evaluation_id DESC'
+      : `m.risk_flagged DESC,
+         FIELD(m.status_label, '불완전판매 의심', '저점수', '정상'),
+         m.final_score ASC`;
   return query(
-    `SELECT m.evaluation_id, c.consultation_code, c.agent_id, c.consulted_at,
-            m.consult_type_ai, m.recommend_type, m.final_score,
+    `SELECT m.evaluation_id, c.consultation_code, c.agent_id,
+            COALESCE(a.agent_name, c.agent_id) AS agent_name,
+            c.consulted_at, m.consult_type_ai, m.recommend_type, m.final_score,
             m.risk_flagged, m.status_label, m.evaluated_at
        FROM ai_evaluation_master m
        JOIN consultation_master c ON c.consultation_id = m.consultation_id
-       ${where}
-      ORDER BY FIELD(m.status_label, '불완전판매 의심', '저점수', '정상'),
-               m.final_score ASC
+       LEFT JOIN agents a ON a.agent_id = c.agent_id
+       ${where.sql}
+      ORDER BY ${orderBy}
       LIMIT ? OFFSET ?`,
-    params,
+    [...where.params, limit, offset],
   );
+}
+
+/**
+ * 화면① summary 블록용 카운트 (계약 §3.2).
+ *  - total_count·risk_count: 필터 무관 전체 (evaluator='AI_최종')
+ *  - filtered_count: 필터 적용 후 총 건수 (limit/offset 무관 — 페이지 계산용)
+ */
+export async function countForDashboard(q: DashboardQuery = {}): Promise<{
+  total_count: number;
+  risk_count: number;
+  filtered_count: number;
+}> {
+  const where = dashboardWhere(q);
+  const [totals, filtered] = await Promise.all([
+    query<{ total_count: number; risk_count: number }>(
+      `SELECT COUNT(*) AS total_count, COALESCE(SUM(m.risk_flagged), 0) AS risk_count
+         FROM ai_evaluation_master m
+        WHERE m.evaluator = 'AI_최종'`,
+    ),
+    query<{ filtered_count: number }>(
+      `SELECT COUNT(*) AS filtered_count
+         FROM ai_evaluation_master m
+         JOIN consultation_master c ON c.consultation_id = m.consultation_id
+        ${where.sql}`,
+      where.params,
+    ),
+  ]);
+  return {
+    total_count: Number(totals[0].total_count),
+    risk_count: Number(totals[0].risk_count),
+    filtered_count: Number(filtered[0].filtered_count),
+  };
 }

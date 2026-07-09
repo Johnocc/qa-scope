@@ -124,12 +124,14 @@ GET /api/evaluations?date_from=2026-06-01&date_to=2026-06-30&agent_id=AGT-003&co
 
 ## 5. 남은 일 (이 계약과 연결된 후속 작업)
 
-- [ ] `listForDashboard()` 확장 (`lib/db/evaluationRepo.ts`):
+- [x] `listForDashboard()` 확장 (`lib/db/evaluationRepo.ts`):
       `agents` JOIN(`agent_name`), 필터 4종(date·agent·type·status),
       `risk_flagged DESC` 정렬 선두 추가(현재는 status_label 우선만 구현),
-      `sort=date` 분기
-- [ ] 라우트(`app/api/evaluations/route.ts`) 응답을 배열 → `{ meta, summary, items }`로 변경
-      + `status_labels` 계산(조회 시점 `low_score_cut` 로드)
+      `sort=date` 분기 (2026-07-09 완료 — `countForDashboard()` 신설 포함)
+- [x] 라우트(`app/api/evaluations/route.ts`) 응답을 배열 → `{ meta, summary, items }`로 변경
+      + `status_labels` 계산(조회 시점 `low_score_cut` 로드 — `lib/db/statusLabels.ts` 공용 헬퍼,
+      화면②와 단일 구현. 프론트 스텁: `schemas/evaluations-list.v1.example.json`.
+      §10.4 케이스는 `npm run db:seed-edge`(edge_104)로 시드 재현 — 2026-07-09 완료)
 - [ ] 목업의 프론트 측 `computeStatus()` 제거 — 서버 값 그대로 표시로 교체
 - [ ] 화면① 목업 데이터 필드명(`consultation_id` 등)을 이 계약(`consultation_code`)에 맞춰 정리
 
