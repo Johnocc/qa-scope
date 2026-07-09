@@ -153,9 +153,10 @@ GET /api/evaluations/{evaluation_id}
 
 ## 6. 남은 일 (이 계약과 연결된 후속 작업)
 
-- [ ] `header` 블록 구현 — 라우트에서 `consultation_master` × `agents` JOIN
-      + `status_labels` 계산(화면① 계약 §3.3 규칙 재사용) 후 응답에 추가
-      (현재 응답은 `{ evaluation, dialogues }` 2블록)
+- [x] `header` 블록 구현 — 라우트에서 `consultation_master` × `agents` JOIN
+      + `status_labels` 계산(화면① 계약 §3.3 규칙 재사용 — `lib/db/statusLabels.ts`
+      공용 헬퍼) 후 응답에 추가. 프론트 스텁: `schemas/evaluation-detail.v1.example.json`
+      (2026-07-09 완료)
 - [ ] 화면② 목업의 단일 `근거대화ID` → 근거 배열(`근거[].dialogue_id`) 기준으로 프론트 이식
 - [ ] 검수확정·점수수정·코멘트 저장 API는 **이 계약 범위 밖** (쓰기 계약은 별도 문서로 —
       MVP 화면 이식 우선)
