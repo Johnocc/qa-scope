@@ -102,10 +102,9 @@
 <div class="shell">
 
   <div class="mock-banner">
-    ⚠ 목업 — 우현님 확정 계약 <code>화면1_채점결과목록_API계약_v1.md</code> 기준으로 갱신했습니다.
-    핵심 변경: 표시용 상담번호(<code>consultation_code</code>)와 실제 조회 키(<code>evaluation_id</code>, 숫자 PK)를 분리 —
-    "보기"는 이제 <code>evaluation_id</code>로 화면②에 진입합니다. 상태 배지 필드명은 <code>status_labels</code>(배열)로 통일,
-    정렬은 계약 결정4대로 <b>위험표시 → 상태라벨 순위 → 총점</b> 3단계로 계산합니다. 값은 여전히 골든셋 7건 + 데모 2건.
+    ⚠ 목업 — 우현님이 주신 실제 예시 응답 <code>evaluations-list.v1.example.json</code>을 그대로 사용합니다(가상 수치 아님).
+    시드 더미 7건 + 미배정(unknown) 1건, 실제 상담사 명부(AGT-001~006)와 실명입니다.
+    엣지 케이스 포함: dummy_05(총점 93.8 ≥ 컷인데 플래그3만 있어 라벨은 "정상"이지만 위험 점 뜸), dummy_02(병기 건), dummy_08(미배정+유형 없음 → "—" 표시).
   </div>
 
   <div class="tabs">
@@ -137,9 +136,9 @@
   </div>
 
   <p class="footnote">
-    * <code>status_labels</code> 판정(서버 계산, 계약 §3.3 정본): 저장된 <code>status_label</code>이 "불완전판매 의심"이면 그 라벨 포함, <code>final_score</code> &lt; 조회 시점 컷(현재 70, <code>app_config</code>)이면 "저점수" 포함, 둘 다 아니면 <code>["정상"]</code>. <code>risk_flagged</code>는 라벨과 별개 레이어라 "정상"이어도 빨간 점이 뜰 수 있음(§8.4) — dummy_08(데모)이 그 예시.<br>
-    * 데이터 출처: 루브릭 v1.5 / 골든셋 7건(<code>test/golden/golden_set.json</code>, <code>consultation_code=dummy_01~07</code>). dummy_08과 C-2026-018442는 회귀 케이스·화면② 연동 확인용으로 제가 추가한 데모 데이터입니다.<br>
-    * "보기" → <code>evaluation_id</code> 기준으로 화면②로 이동. 화면②에 실제 데이터가 있는 건 evaluation_id 9(C-2026-018442)뿐 — 나머지는 준비중 토스트.
+    * <code>status_labels</code> 판정(서버 계산, 계약 §3.3 정본): 저장된 <code>status_label</code>이 "불완전판매 의심"이면 그 라벨 포함, <code>final_score</code> &lt; 조회 시점 컷(현재 70, <code>app_config</code>)이면 "저점수" 포함, 둘 다 아니면 <code>["정상"]</code>. <code>risk_flagged</code>는 라벨과 별개 레이어라 "정상"이어도 빨간 점이 뜰 수 있음(§8.4) — dummy_05가 그 예시.<br>
+    * 데이터 출처: <code>evaluations-list.v1.example.json</code>(우현님 제공 실제 예시). 상담사는 실제 시드 명부(AGT-001 이지현 ~ AGT-006 김도연, unknown 미배정) 그대로입니다.<br>
+    * "보기" → <code>evaluation_id</code> 기준으로 화면②로 이동. 화면②에 실제 상세 데이터가 있는 건 evaluation_id 105(dummy_05, 한지원)뿐 — 나머지는 준비중 토스트.
   </p>
 </div>
 
@@ -158,20 +157,18 @@
    원칙(계약 §0·결정3): 상태라벨·위험표시여부는 서버가 계산해 내려준 값을 그대로 쓴다.
    프론트는 재계산하지 않는다(70점 컷 등 하드코딩 금지, CLAUDE.md §13).
 ============================================================ */
+// evaluations-list.v1.example.json 그대로(정렬 결과 포함 — sort=risk 적용된 순서). agent_id도 실제 명부 값.
 const EVALUATIONS = [
-  { evaluation_id: 1, consultation_code: "dummy_01", agent_name: "최상담", consulted_at: "2026-07-01", consult_type: "신규·보장",  final_score: 100.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"], risk_flags: [] },
-  { evaluation_id: 2, consultation_code: "dummy_02", agent_name: "김상담", consulted_at: "2026-06-25", consult_type: "신규·보장",  final_score: 32.4,  risk_flagged: true,  status_label: "불완전판매 의심", status_labels: ["불완전판매 의심", "저점수"], risk_flags: [{rule_number:5},{rule_number:6}] },
-  { evaluation_id: 3, consultation_code: "dummy_03", agent_name: "이상담", consulted_at: "2026-06-27", consult_type: "해지·환급",  final_score: 49.2,  risk_flagged: true,  status_label: "불완전판매 의심", status_labels: ["불완전판매 의심", "저점수"], risk_flags: [{rule_number:1},{rule_number:5}] },
-  { evaluation_id: 4, consultation_code: "dummy_04", agent_name: "박상담", consulted_at: "2026-07-02", consult_type: "보험금청구", final_score: 100.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"], risk_flags: [] },
-  { evaluation_id: 5, consultation_code: "dummy_05", agent_name: "최상담", consulted_at: "2026-06-30", consult_type: "계약변경",  final_score: 94.0,  risk_flagged: false, status_label: "정상", status_labels: ["정상"], risk_flags: [] },
-  { evaluation_id: 6, consultation_code: "dummy_06", agent_name: "이상담", consulted_at: "2026-06-22", consult_type: "단순문의",  final_score: 27.9,  risk_flagged: true,  status_label: "저점수", status_labels: ["저점수"], risk_flags: [{rule_number:4}] },
-  { evaluation_id: 7, consultation_code: "dummy_07", agent_name: "김상담", consulted_at: "2026-06-28", consult_type: "신규·보장",  final_score: 65.9,  risk_flagged: true,  status_label: "불완전판매 의심", status_labels: ["불완전판매 의심", "저점수"], risk_flags: [{rule_number:5}] },
-  // dummy_08: CLAUDE.md §10.4 필수 확인 케이스 데모 — 총점 70 이상 + 플래그3(오정보)만 있는 경우.
-  // status_label은 "정상"이지만 risk_flagged=true라 빨간 점이 떠야 함(초록불에 묻히면 안 됨).
-  { evaluation_id: 8, consultation_code: "dummy_08", agent_name: "박상담", consulted_at: "2026-07-03", consult_type: "계약변경",  final_score: 82.0,  risk_flagged: true,  status_label: "정상", status_labels: ["정상"], risk_flags: [{rule_number:3}] },
-  // evaluation_id 9: 화면②에 완전한 예시 데이터(근거 배열+dialogue_id)가 있는 유일한 건.
-  // 팀이 준 원본 예시 그대로라 상담사명도 원본 그대로(이서연) 씀.
-  { evaluation_id: 9, consultation_code: "C-2026-018442", agent_name: "이서연", consulted_at: "2026-06-20", consult_type: "해지·환급", final_score: 96.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"], risk_flags: [], hasDetail: true },
+  { evaluation_id: 102, consultation_code: "dummy_02", agent_id: "AGT-002", agent_name: "이준호", consulted_at: "2026-06-23 14:15:00", consult_type: "신규·보장",  final_score: 32.4,  risk_flagged: true,  status_label: "불완전판매 의심", status_labels: ["불완전판매 의심", "저점수"] },
+  { evaluation_id: 106, consultation_code: "dummy_06", agent_id: "AGT-002", agent_name: "이준호", consulted_at: "2026-06-29 13:50:00", consult_type: "단순문의",  final_score: 27.9,  risk_flagged: true,  status_label: "저점수", status_labels: ["저점수"] },
+  // dummy_05: §10.4 필수 확인 케이스 — 총점 93.8(컷 이상)인데 플래그3(오정보)만 있어 라벨은 "정상"이지만 risk_flagged=true(빨간 점 필수, 초록불에 묻히면 안 됨). 화면②에 실제 상세 연결됨.
+  { evaluation_id: 105, consultation_code: "dummy_05", agent_id: "AGT-005", agent_name: "한지원", consulted_at: "2026-06-26 10:20:00", consult_type: "계약변경",  final_score: 93.8,  risk_flagged: true,  status_label: "정상", status_labels: ["정상"], hasDetail: true },
+  { evaluation_id: 103, consultation_code: "dummy_03", agent_id: "AGT-003", agent_name: "박소영", consulted_at: "2026-06-24 11:05:00", consult_type: "해지·환급",  final_score: 49.2,  risk_flagged: false, status_label: "저점수", status_labels: ["저점수"] },
+  { evaluation_id: 107, consultation_code: "dummy_07", agent_id: "AGT-006", agent_name: "김도연", consulted_at: "2026-06-30 15:10:00", consult_type: "신규·보장",  final_score: 65.9,  risk_flagged: false, status_label: "저점수", status_labels: ["저점수"] },
+  // dummy_08: 미배정(unknown) 건 — consult_type null → 화면은 "—" 표시.
+  { evaluation_id: 108, consultation_code: "dummy_08", agent_id: "unknown", agent_name: "미배정", consulted_at: "2026-07-01 09:05:00", consult_type: null, final_score: 88.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"] },
+  { evaluation_id: 101, consultation_code: "dummy_01", agent_id: "AGT-001", agent_name: "이지현", consulted_at: "2026-06-22 09:40:00", consult_type: "신규·보장",  final_score: 100.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"] },
+  { evaluation_id: 104, consultation_code: "dummy_04", agent_id: "AGT-004", agent_name: "정유나", consulted_at: "2026-06-25 16:30:00", consult_type: "보험금청구", final_score: 100.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"] },
 ];
 
 const STATUS_RANK = { "불완전판매 의심": 0, "저점수": 1, "정상": 2 }; // 계약 결정4 — 정렬용
@@ -187,7 +184,7 @@ function goDetail(evaluationId, hasDetail){
   if(hasDetail){
     window.location.href = `화면2_채점상세_목업.html?evaluation_id=${evaluationId}`;
   } else {
-    toast(`evaluation_id ${evaluationId}: 화면②용 상세(근거 배열) 데이터가 아직 없어 준비 중입니다. 예시로 evaluation_id 9(C-2026-018442) 건을 확인해보세요.`);
+    toast(`evaluation_id ${evaluationId}: 화면②용 상세(근거 배열) 데이터가 아직 없어 준비 중입니다. 예시로 evaluation_id 105(dummy_05, 한지원) 건을 확인해보세요.`);
   }
 }
 
@@ -199,10 +196,12 @@ function statusClassName(label){
 
 const state = { date: "all", agent: "all", type: "all", status: "all", sortLowFirst: true };
 
+function dateOnly(consultedAt){ return consultedAt.slice(0, 10); }
+
 function populateFilters(){
-  const dates = [...new Set(EVALUATIONS.map(e=>e.consulted_at))].sort();
+  const dates = [...new Set(EVALUATIONS.map(e=>dateOnly(e.consulted_at)))].sort();
   const agents = [...new Set(EVALUATIONS.map(e=>e.agent_name))].sort();
-  const types = [...new Set(EVALUATIONS.map(e=>e.consult_type))];
+  const types = [...new Set(EVALUATIONS.map(e=>e.consult_type).filter(t=>t!==null))];
 
   const dateSel = document.getElementById("filterDate");
   dateSel.innerHTML = `<option value="all">날짜 전체</option>` +
@@ -235,7 +234,7 @@ function populateFilters(){
 
 function render(){
   let rows = EVALUATIONS.filter(e =>
-    (state.date === "all" || e.consulted_at === state.date) &&
+    (state.date === "all" || dateOnly(e.consulted_at) === state.date) &&
     (state.agent === "all" || e.agent_name === state.agent) &&
     (state.type === "all" || e.consult_type === state.type) &&
     (state.status === "all" || e.status_label === state.status)

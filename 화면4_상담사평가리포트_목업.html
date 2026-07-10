@@ -74,7 +74,7 @@
     padding:8px 12px;font-size:13px;color:var(--text);
   }
 
-  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
   .stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;}
   .stat-card .label{font-size:12px;color:var(--sub);margin-bottom:6px;}
   .stat-card .value{font-size:26px;font-weight:700;}
@@ -142,9 +142,10 @@
 <div class="shell">
 
   <div class="mock-banner">
-    ⚠ 목업(가상 데이터) — 데이터는 <code>agent-report.v1.example.json</code>(프론트-백엔드 API 계약 v1, 상담사 AG-003 예시)을 그대로 사용 중입니다.
-    실 연동 시 아래 스크립트의 상수 하나만 <code>fetch('/api/agents/{agent_id}/report?period=...')</code>로 바꾸면 됩니다.<br>
-    v4: 1조 목업 확정 피드백 반영 — 코멘트 버튼 제거(화면②에 이미 있어 중복), 스파이더 차트는 본인 선만(팀 평균 점선 제거), 표본("N건 중") 태그·채점건수 UI 전부 제거(현재 데이터 규모에 무의미). 이 화면은 "순위 줄 세우기"가 아니라 상담사 개인의 약점 진단·코칭 도구입니다.
+    ⚠ 목업 — 우현님 확정 계약 <code>화면4_상담사리포트_API계약_v1.md</code>(v1.3)로 갱신했습니다.
+    <b>v1.2 코칭 도구 철학 반영: 순위·팀 비교 필드(rank·agent_count·team_avg_score·domain_rates[].team_rate) 서버 응답에서 완전히 제거</b> — 프론트도 참조하지 않습니다. 카드도 4개→3개(건수·평균·위험).
+    표본 표기("전체 N건 중")는 화면에서 뺐습니다(응답 필드는 유지, 재도입 보류 — 결정8). C영역 라벨은 v1.3에서 <b>태도·공감</b>으로 확정(경청은 A3와 겹쳐 금지).<br>
+    데이터는 실제 요약 수치(이준호/AGT-002, <code>agents-summary.v1.example.json</code> 기준: 평균 30.2·위험 2건·약점 D영역)에 맞춰 18항목·영역별 상세는 제가 그럴듯하게 구성했습니다(개별 평가 2건의 항목별 원본은 안 받아서 완전한 실제값은 아님 — 요약 3수치만 실제, 나머지는 그 수치에 맞춘 예시).
   </div>
 
   <!-- 상단 탭은 ①②③ 3개만. ④는 탭이 아니라 ③의 드릴다운 화면이라 여기 없음. -->
@@ -189,11 +190,6 @@
       <div class="value danger" id="statRisk">-</div>
       <div class="sub" id="statRiskSub">-</div>
     </div>
-    <div class="stat-card">
-      <div class="label">팀 내 순위</div>
-      <div class="value" id="statRank">-</div>
-      <div class="sub" id="statRankSub">-</div>
-    </div>
   </div>
 
   <div class="main-grid">
@@ -232,59 +228,60 @@
      const API_RESPONSE = await fetch(`/api/agents/${agentId}/report?period=${period}`).then(r=>r.json());
      로만 바꾸면 이 아래 렌더링 코드는 그대로 재사용 가능(계약이 같으므로).
    ============================================================ */
+// v1.2/v1.3 계약 반영: rank·agent_count·team_avg_score·domain_rates[].team_rate 없음(서버가 아예 안 내려줌).
+// total_evaluation_count·total_risk_count는 응답 필드로는 유지하되(결정8) 화면엔 표시하지 않음.
 const API_RESPONSE = {
   "meta": {
-    "agent_id": "AG-003",
-    "agent_name": "김상담",
-    "period": "30d",
-    "period_from": "2026-06-05",
-    "period_to": "2026-07-05",
-    "generated_at": "2026-07-05T19:30:00+09:00",
+    "agent_id": "AGT-002",
+    "agent_name": "이준호",
+    "period": "all",
+    "period_from": "2026-06-23",
+    "period_to": "2026-07-09",
+    "generated_at": "2026-07-09T10:30:00+09:00",
     "rubric_version": "v1.5",
     "thresholds": { "item_rate_warn": 60, "item_rate_ok": 80 }
   },
   "summary": {
-    "evaluation_count": 145,
-    "total_evaluation_count": 1000,
-    "avg_score": 73.6,
-    "team_avg_score": 82.4,
-    "risk_count": 4,
-    "total_risk_count": 12,
-    "rank": 4,
-    "agent_count": 4,
+    "evaluation_count": 2,
+    "total_evaluation_count": 8,
+    "avg_score": 30.2,
+    "risk_count": 2,
+    "total_risk_count": 3,
     "weak_domain": { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "label": "불완전판매 고지" }
   },
   "domain_rates": [
-    { "domain_code": "A", "domain_name": "상담 도입", "rate": 90.8, "team_rate": 92.0, "applied_count": 145 },
-    { "domain_code": "B", "domain_name": "업무처리", "rate": 80.8, "team_rate": 85.0, "applied_count": 145 },
-    { "domain_code": "C", "domain_name": "태도·공감", "rate": 77.8, "team_rate": 84.0, "applied_count": 145 },
-    { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "rate": 58.0, "team_rate": 73.0, "applied_count": 52 },
-    { "domain_code": "E", "domain_name": "상담 마무리", "rate": 73.6, "team_rate": 86.0, "applied_count": 145 }
+    { "domain_code": "A", "domain_name": "상담 도입", "rate": 75.0, "applied_count": 2 },
+    { "domain_code": "B", "domain_name": "업무처리", "rate": 50.0, "applied_count": 2 },
+    { "domain_code": "C", "domain_name": "태도·공감", "rate": 41.7, "applied_count": 2 },
+    { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "rate": 10.0, "applied_count": 1 },
+    { "domain_code": "E", "domain_name": "상담 마무리", "rate": 57.1, "applied_count": 2 }
   ],
   "items": [
-    { "item_code": "A1", "item_name": "맞이인사 및 소속·성명 밝히기", "domain_code": "A", "max_score": 4, "applied_count": 145, "na_count": 0, "avg_earned": 3.7, "rate": 92.5, "status": "양호" },
-    { "item_code": "A2", "item_name": "고객 본인확인", "domain_code": "A", "max_score": 4, "applied_count": 139, "na_count": 6, "avg_earned": 3.6, "rate": 90.0, "status": "양호" },
-    { "item_code": "A3", "item_name": "경청 및 용건·니즈 파악", "domain_code": "A", "max_score": 4, "applied_count": 145, "na_count": 0, "avg_earned": 3.6, "rate": 90.0, "status": "양호" },
-    { "item_code": "B1", "item_name": "정보 정확성", "domain_code": "B", "max_score": 8, "applied_count": 145, "na_count": 0, "avg_earned": 6.5, "rate": 81.3, "status": "양호" },
-    { "item_code": "B2", "item_name": "쉬운 설명", "domain_code": "B", "max_score": 6, "applied_count": 96, "na_count": 49, "avg_earned": 4.8, "rate": 80.0, "status": "양호" },
-    { "item_code": "B3", "item_name": "적극적 해결·대안 제시", "domain_code": "B", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 4.9, "rate": 81.7, "status": "양호" },
-    { "item_code": "B4", "item_name": "신속·효율적 처리", "domain_code": "B", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 4.8, "rate": 80.0, "status": "양호" },
-    { "item_code": "C1", "item_name": "공감 표현", "domain_code": "C", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 4.4, "rate": 73.3, "status": "보통" },
-    { "item_code": "C2", "item_name": "친절·언어예절", "domain_code": "C", "max_score": 6, "applied_count": 145, "na_count": 0, "avg_earned": 5.1, "rate": 85.0, "status": "양호" },
-    { "item_code": "C3", "item_name": "감정 대응", "domain_code": "C", "max_score": 6, "applied_count": 61, "na_count": 84, "avg_earned": 4.5, "rate": 75.0, "status": "보통" },
-    { "item_code": "D1", "item_name": "중요사항 설명의무", "domain_code": "D", "max_score": 7, "applied_count": 38, "na_count": 107, "avg_earned": 3.5, "rate": 50.0, "status": "개선 필요" },
-    { "item_code": "D2", "item_name": "적합성 원칙(절차+결과)", "domain_code": "D", "max_score": 5, "applied_count": 38, "na_count": 107, "avg_earned": 2.1, "rate": 42.0, "status": "개선 필요" },
-    { "item_code": "D3", "item_name": "고지의무 안내", "domain_code": "D", "max_score": 5, "applied_count": 38, "na_count": 107, "avg_earned": 3.2, "rate": 64.0, "status": "보통" },
-    { "item_code": "D4", "item_name": "면책·부지급 사유 설명", "domain_code": "D", "max_score": 4, "applied_count": 38, "na_count": 107, "avg_earned": 1.8, "rate": 45.0, "status": "개선 필요" },
-    { "item_code": "D5", "item_name": "청약철회·해피콜 안내", "domain_code": "D", "max_score": 4, "applied_count": 38, "na_count": 107, "avg_earned": 2.6, "rate": 65.0, "status": "보통" },
-    { "item_code": "D6", "item_name": "허위·과장 및 부당권유 금지", "domain_code": "D", "max_score": 5, "applied_count": 52, "na_count": 93, "avg_earned": 4.2, "rate": 84.0, "status": "양호" },
-    { "item_code": "E1", "item_name": "처리내용 재확인·이해 점검", "domain_code": "E", "max_score": 7, "applied_count": 145, "na_count": 0, "avg_earned": 5.4, "rate": 77.1, "status": "보통" },
-    { "item_code": "E2", "item_name": "종료 인사·추가 안내", "domain_code": "E", "max_score": 7, "applied_count": 145, "na_count": 0, "avg_earned": 4.9, "rate": 70.0, "status": "보통" }
+    { "item_code": "A1", "item_name": "맞이인사 및 소속·성명 밝히기", "domain_code": "A", "max_score": 4, "applied_count": 2, "na_count": 0, "avg_earned": 3.0, "rate": 75.0, "status": "보통" },
+    { "item_code": "A2", "item_name": "고객 본인확인", "domain_code": "A", "max_score": 4, "applied_count": 2, "na_count": 0, "avg_earned": 3.0, "rate": 75.0, "status": "보통" },
+    { "item_code": "A3", "item_name": "경청 및 용건·니즈 파악", "domain_code": "A", "max_score": 4, "applied_count": 2, "na_count": 0, "avg_earned": 3.0, "rate": 75.0, "status": "보통" },
+    { "item_code": "B1", "item_name": "정보 정확성", "domain_code": "B", "max_score": 8, "applied_count": 2, "na_count": 0, "avg_earned": 4.0, "rate": 50.0, "status": "개선 필요" },
+    { "item_code": "B2", "item_name": "쉬운 설명", "domain_code": "B", "max_score": 6, "applied_count": 2, "na_count": 0, "avg_earned": 3.0, "rate": 50.0, "status": "개선 필요" },
+    { "item_code": "B3", "item_name": "적극적 해결·대안 제시", "domain_code": "B", "max_score": 6, "applied_count": 2, "na_count": 0, "avg_earned": 3.0, "rate": 50.0, "status": "개선 필요" },
+    { "item_code": "B4", "item_name": "신속·효율적 처리", "domain_code": "B", "max_score": 6, "applied_count": 2, "na_count": 0, "avg_earned": 3.0, "rate": 50.0, "status": "개선 필요" },
+    { "item_code": "C1", "item_name": "공감 표현", "domain_code": "C", "max_score": 6, "applied_count": 2, "na_count": 0, "avg_earned": 2.5, "rate": 41.7, "status": "개선 필요" },
+    { "item_code": "C2", "item_name": "친절·언어예절", "domain_code": "C", "max_score": 6, "applied_count": 2, "na_count": 0, "avg_earned": 2.5, "rate": 41.7, "status": "개선 필요" },
+    { "item_code": "C3", "item_name": "감정 대응", "domain_code": "C", "max_score": 6, "applied_count": 2, "na_count": 0, "avg_earned": 2.5, "rate": 41.7, "status": "개선 필요" },
+    { "item_code": "D1", "item_name": "중요사항 설명의무", "domain_code": "D", "max_score": 7, "applied_count": 1, "na_count": 1, "avg_earned": 0.0, "rate": 0.0, "status": "개선 필요" },
+    { "item_code": "D2", "item_name": "적합성 원칙(절차+결과)", "domain_code": "D", "max_score": 5, "applied_count": 1, "na_count": 1, "avg_earned": 0.0, "rate": 0.0, "status": "개선 필요" },
+    { "item_code": "D3", "item_name": "고지의무 안내", "domain_code": "D", "max_score": 5, "applied_count": 1, "na_count": 1, "avg_earned": 3.0, "rate": 60.0, "status": "보통" },
+    { "item_code": "D4", "item_name": "면책·부지급 사유 설명", "domain_code": "D", "max_score": 4, "applied_count": 1, "na_count": 1, "avg_earned": 0.0, "rate": 0.0, "status": "개선 필요" },
+    { "item_code": "D5", "item_name": "청약철회·해피콜 안내", "domain_code": "D", "max_score": 4, "applied_count": 1, "na_count": 1, "avg_earned": 0.0, "rate": 0.0, "status": "개선 필요" },
+    { "item_code": "D6", "item_name": "허위·과장 및 부당권유 금지", "domain_code": "D", "max_score": 5, "applied_count": 1, "na_count": 1, "avg_earned": 0.0, "rate": 0.0, "status": "개선 필요" },
+    { "item_code": "E1", "item_name": "처리내용 재확인·이해 점검", "domain_code": "E", "max_score": 7, "applied_count": 2, "na_count": 0, "avg_earned": 4.0, "rate": 57.1, "status": "개선 필요" },
+    { "item_code": "E2", "item_name": "종료 인사·추가 안내", "domain_code": "E", "max_score": 7, "applied_count": 2, "na_count": 0, "avg_earned": 4.0, "rate": 57.1, "status": "개선 필요" }
   ],
   "improvement_items": [
-    { "item_code": "D2", "item_name": "적합성 원칙(절차+결과)", "domain_code": "D", "rate": 42.0, "tip": "가입목적·재정상황·기존계약 확인 절차 누락이 반복됨. 권유 전 3대 확인 습관화 필요." },
-    { "item_code": "D4", "item_name": "면책·부지급 사유 설명", "domain_code": "D", "rate": 45.0, "tip": "언급은 하나 중요성을 축소해 설명하는 경향. 명확한 강조 표현으로 코칭 필요." },
-    { "item_code": "D1", "item_name": "중요사항 설명의무", "domain_code": "D", "rate": 50.0, "tip": "보장내용 세부범주(진단비·수술비 등) 설명 누락 빈도 높음. 체크리스트 활용 권장." }
+    { "item_code": "D1", "item_name": "중요사항 설명의무", "domain_code": "D", "rate": 0.0, "tip": "보장내용 세부범주(진단비·수술비 등) 설명 누락 빈도 높음. 체크리스트 활용 권장." },
+    { "item_code": "D2", "item_name": "적합성 원칙(절차+결과)", "domain_code": "D", "rate": 0.0, "tip": "가입목적·재정상황·기존계약 확인 절차 누락이 반복됨. 권유 전 3대 확인 습관화 필요." },
+    { "item_code": "D4", "item_name": "면책·부지급 사유 설명", "domain_code": "D", "rate": 0.0, "tip": "언급은 하나 중요성을 축소해 설명하는 경향. 명확한 강조 표현으로 코칭 필요." },
+    { "item_code": "D5", "item_name": "청약철회·해피콜 안내", "domain_code": "D", "rate": 0.0, "tip": null },
+    { "item_code": "D6", "item_name": "허위·과장 및 부당권유 금지", "domain_code": "D", "rate": 0.0, "tip": null }
   ]
 };
 
@@ -395,26 +392,21 @@ function render(res){
     weakBadge.style.display = "none";
   }
 
-  // 상단 통계 카드 — 항상 "N/전체" 형태로 표본을 같이 보여줌(피드백 ①③)
+  // 상단 통계 카드 3개 — v1.2: 표본 표기("전체 N건 중")·팀 평균 대비·순위는 화면에서 제외(결정7·8).
+  // total_evaluation_count·total_risk_count는 응답엔 있지만(재도입 대비) 화면엔 안 씀.
   document.getElementById("statCount").textContent = `${summary.evaluation_count}건`;
-  document.getElementById("statCountSub").textContent = `전체 ${summary.total_evaluation_count}건 중`;
+  document.getElementById("statCountSub").textContent = "이 기간 평가 건수";
 
   if(summary.avg_score === null){
     document.getElementById("statAvg").textContent = "—";
     document.getElementById("statAvgSub").textContent = "채점 건 없음";
   } else {
     document.getElementById("statAvg").textContent = summary.avg_score.toFixed(1);
-    const diff = Math.round((summary.avg_score - summary.team_avg_score) * 10) / 10;
-    const sign = diff > 0 ? "+" : "";
-    document.getElementById("statAvgSub").textContent = `팀 평균 ${summary.team_avg_score} 대비 ${sign}${diff}`;
+    document.getElementById("statAvgSub").textContent = "건 단위 평균";
   }
 
   document.getElementById("statRisk").textContent = `${summary.risk_count}건`;
-  document.getElementById("statRiskSub").textContent = `전체 위험 ${summary.total_risk_count}건 중`;
-
-  document.getElementById("statRank").textContent =
-    summary.rank === null ? "—" : `${summary.rank} / ${summary.agent_count}`;
-  document.getElementById("statRankSub").textContent = `평가 1건 이상 상담사 ${summary.agent_count}명 중`;
+  document.getElementById("statRiskSub").textContent = "위험플래그 1개 이상";
 
   // 레이더 차트 — null(적용 0건)은 0으로 그리지 않고 빈 값으로 둔다(약속사항 §3.3). 순수 SVG라 외부 스크립트 로딩 실패 위험이 없다.
   document.getElementById("radarChart").innerHTML = buildRadarSVG(domain_rates);
@@ -486,9 +478,10 @@ function render(res){
   }
 
   document.getElementById("footnote").innerHTML = `
-    * 데이터 계약: <code>GET /api/agents/{agent_id}/report?period=${meta.period}</code> (프론트엔드-백엔드 미리 약속사항 제안 v1) · 값은 목업(<code>agent-report.v1.example.json</code>).<br>
+    * 데이터 계약: <code>GET /api/agents/{agent_id}/report?period=${meta.period}</code> (화면4_상담사리포트_API계약_v1.md, v1.3).<br>
     * 항목명·배점은 루브릭 ${meta.rubric_version} 고정값. 상태·약점·개선목록은 서버 계산값을 그대로 표시(프론트 재계산 없음).<br>
     * "해당없음"은 이 상담사에게 해당 상황 자체가 없었다는 뜻 — 약점이 아님(CLAUDE.md §5.3 N/A 규칙).<br>
+    * 이 화면엔 순위·팀 평균이 없습니다 — 인사고과가 아니라 코칭(약점 진단) 도구이기 때문입니다(v1.2 팀 결정).<br>
     * PDF 버튼은 브라우저 인쇄(Ctrl/Cmd+P) 기반 임시 구현.
   `;
 }

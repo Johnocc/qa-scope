@@ -54,10 +54,10 @@
 <div class="shell">
 
   <div class="mock-banner">
-    ⚠ 목업 — 우현님 확정 계약 <code>화면3_상담사대시보드_API계약_v1.md</code> 기준으로 갱신했습니다.
-    화면④와 집계 정본을 공유해서(결정2) 김상담(AG-003) 행은 화면④ 예시와 완전히 같은 값입니다. 나머지는 화면 구성 확인용 가상 데이터.
-    <b>상단 요약 4개는 이제 표에서 합산하지 않고, 서버가 내려준 <code>summary</code> 값을 그대로 표시</b>합니다(결정 §3.2 — 페이지네이션·행 생략에도 카드 숫자가 안 흔들리게).
-    화면④처럼 <code>period</code> 선택도 추가됐고, "미배정" 행도 포함합니다(결정6 — 전량 채점 원칙).
+    ⚠ 목업 — 우현님이 주신 실제 예시 응답 <code>agents-summary.v1.example.json</code>을 그대로 사용합니다(가상 수치 아님).
+    화면①과 같은 시드 데이터(period=all 기준 전체 8건·위험 3건)로 수치가 정합합니다(계약 §4 정합 표).
+    <b>상단 요약 4개는 표에서 합산하지 않고 서버 <code>summary</code> 값을 그대로 표시</b>합니다.
+    이지현·정유나·한지원은 약점 없음("없음" 표시), 미배정 1건 포함, 동점(100.0)은 agent_id 오름차순으로 정렬됩니다(결정5) — 순위 숫자는 표시하지 않습니다.
   </div>
 
   <div class="tabs">
@@ -76,7 +76,7 @@
   </div>
 
   <div class="stat-grid">
-    <div class="stat-card"><div class="label">전체 평균</div><div class="value" id="statAvg">-</div><div class="sub">건 단위 평균(화면④ team_avg_score와 동일 수식)</div></div>
+    <div class="stat-card"><div class="label">전체 평균</div><div class="value" id="statAvg">-</div><div class="sub">건 단위 평균(화면④ §4 수식과 동일)</div></div>
     <div class="stat-card"><div class="label">채점 건수</div><div class="value" id="statCount">-</div><div class="sub">기간 내 전체</div></div>
     <div class="stat-card"><div class="label">위험 건</div><div class="value" id="statRisk">-</div><div class="sub">기간 내 전체</div></div>
     <div class="stat-card"><div class="label">상담사 수</div><div class="value" id="statAgents">-</div><div class="sub">평가 1건 이상 보유(미배정 포함)</div></div>
@@ -91,9 +91,9 @@
   </div>
 
   <p class="footnote">
-    * "약점 항목"(<code>weak_domain</code>)은 화면④와 완전히 같은 규칙·값입니다(적용 건수가 있는 영역 중 달성률 최저 영역, 동률이면 배점 합이 큰 영역 우선: D30&gt;B26&gt;C18&gt;E14&gt;A12). 영역 표시명 매핑은 A=상담 도입/B=업무처리/C=공감·경청/D=불완전판매 고지/E=상담 마무리.<br>
-    * 표 정렬은 평균점수 내림차순(결정5) — 이름 클릭 시 같은 <code>period</code>로 화면④에 진입해 여기서 본 수치가 그대로 재현됩니다(결정7).<br>
-    * 데이터 출처: 루브릭 v1.5 / 출력스키마 ver2. 김상담 외 수치는 화면 레이아웃 확인용 가상 데이터.
+    * "약점 항목"(<code>weak_domain</code>)은 화면④와 완전히 같은 규칙·값입니다(적용 건수가 있는 영역 중 달성률 최저 영역, 동률이면 배점 합이 큰 영역 우선: D30&gt;B26&gt;C18&gt;E14&gt;A12). 영역 표시명 매핑은 A=상담 도입/B=업무처리/C=태도·공감/D=불완전판매 고지/E=상담 마무리 (C에는 '경청' 키워드 사용 금지 — A3와 겹침).<br>
+    * 표 정렬은 평균점수 내림차순, 순위 숫자는 표시하지 않음(결정5) — 이름 클릭 시 같은 <code>period</code>로 화면④에 진입해 여기서 본 수치가 그대로 재현됩니다(결정7).<br>
+    * 데이터 출처: <code>agents-summary.v1.example.json</code>(우현님 제공 실제 예시).
   </p>
 </div>
 
@@ -106,32 +106,33 @@
    weak_domain은 화면④ §3.2와 동일 객체·규칙(결정4). unknown(미배정) 행 포함(결정6).
    실 연동 시: fetch(`/api/agents/summary?period=${period}`)로 교체.
 ============================================================ */
+// agents-summary.v1.example.json 그대로(period=all 기준 — 화면①과 정합: 전체 8건·위험 3건).
 const META = {
-  period: "30d",
-  period_from: "2026-06-05",
-  period_to: "2026-07-05",
+  period: "all",
+  period_from: "2026-06-22",
+  period_to: "2026-07-09",
   rubric_version: "v1.5"
 };
 
-// 아래 값들은 실제로는 서버가 계산해 내려주는 summary 블록. 목업이라 미리 계산해 상수로 박아둠
-// (agents 배열과 합이 맞는지는 제가 직접 검산: 132+118+145+121+12=528, 위험 0+1+4+5+2=12, 평균 42297/528=80.1).
 const SUMMARY = {
-  avg_score: 80.1,
-  evaluation_count: 528,
-  risk_count: 12,
-  agent_count: 5
+  avg_score: 69.7,
+  evaluation_count: 8,
+  risk_count: 3,
+  agent_count: 7
 };
 
+// 이미 평균점수 내림차순(동점은 agent_id 오름차순 — 결정5)으로 정렬된 상태 그대로.
 const AGENTS = [
-  { agent_id: "AG-001", agent_name: "최상담", evaluation_count: 132, avg_score: 93.0, risk_count: 0, weak_domain: null },
-  { agent_id: "AG-002", agent_name: "박상담", evaluation_count: 118, avg_score: 86.0, risk_count: 1, weak_domain: { domain_code: "A", domain_name: "상담 도입", label: "상담 도입" } },
-  { agent_id: "AG-003", agent_name: "김상담", evaluation_count: 145, avg_score: 73.6, risk_count: 4, weak_domain: { domain_code: "D", domain_name: "보험특화(불완전판매 방지)", label: "불완전판매 고지" } },
-  { agent_id: "AG-004", agent_name: "이상담", evaluation_count: 121, avg_score: 69.0, risk_count: 5, weak_domain: { domain_code: "C", domain_name: "태도·공감", label: "공감·경청" } },
-  // 미배정(unknown) — 결정6: 전량 채점 원칙상 빠지면 안 됨. 리포트 링크는 비활성.
-  { agent_id: "unknown", agent_name: "미배정", evaluation_count: 12, avg_score: 71.0, risk_count: 2, weak_domain: null },
+  { agent_id: "AGT-001", agent_name: "이지현", evaluation_count: 1, avg_score: 100.0, risk_count: 0, weak_domain: null },
+  { agent_id: "AGT-004", agent_name: "정유나", evaluation_count: 1, avg_score: 100.0, risk_count: 0, weak_domain: null },
+  { agent_id: "AGT-005", agent_name: "한지원", evaluation_count: 1, avg_score: 93.8,  risk_count: 1, weak_domain: null },
+  { agent_id: "unknown", agent_name: "미배정", evaluation_count: 1, avg_score: 88.0,  risk_count: 0, weak_domain: { domain_code: "E", domain_name: "상담 마무리", label: "상담 마무리" } },
+  { agent_id: "AGT-006", agent_name: "김도연", evaluation_count: 1, avg_score: 65.9,  risk_count: 0, weak_domain: { domain_code: "D", domain_name: "보험특화(불완전판매 방지)", label: "불완전판매 고지" } },
+  { agent_id: "AGT-003", agent_name: "박소영", evaluation_count: 1, avg_score: 49.2,  risk_count: 0, weak_domain: { domain_code: "C", domain_name: "태도·공감", label: "태도·공감" } },
+  { agent_id: "AGT-002", agent_name: "이준호", evaluation_count: 2, avg_score: 30.2,  risk_count: 2, weak_domain: { domain_code: "D", domain_name: "보험특화(불완전판매 방지)", label: "불완전판매 고지" } },
 ];
-// 실제 화면④ 예시 데이터가 있는 상담사만 진짜 링크로 연결
-const HAS_REPORT_DEMO = new Set(["AG-003"]);
+// 화면④ 예시 데이터가 있는 상담사만 진짜 링크로 연결(코칭 우선순위 1위 — 약점 D영역·최저점)
+const HAS_REPORT_DEMO = new Set(["AGT-002"]);
 
 function toast(msg){
   const t = document.getElementById('toast');
