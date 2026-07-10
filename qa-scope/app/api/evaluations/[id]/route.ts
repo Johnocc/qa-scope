@@ -7,6 +7,8 @@
  *  - evaluation: 출력스키마 ver2 형태로 재조립된 평가 1건
  *    (근거에 dialogue_id 포함 → "점수 클릭 → 원문 점프"의 연결고리)
  *  - dialogues: 좌측 상담 원문 전체 (turn_order 순)
+ *  - review: 검수 블록 (★계약 v1.1 §3.4 — 검수 없으면 null. 정본 형태는
+ *    검수_쓰기_API계약_v1.md §3.1. 화면 표시값 = COALESCE(review.effective, AI 원본))
  */
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
@@ -51,7 +53,10 @@ export async function GET(
       ),
     };
 
-    return NextResponse.json({ header, evaluation, dialogues });
+    // review 블록 (★v1.1) — 검수 없으면 null (기존 3블록 소비 코드는 무영향)
+    const review = await db.reviews.getReview(evaluationId);
+
+    return NextResponse.json({ header, evaluation, dialogues, review });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

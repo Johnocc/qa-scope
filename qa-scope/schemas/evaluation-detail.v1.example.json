@@ -1,5 +1,5 @@
 {
-  "_comment": "화면② 채점 상세 API 예시 응답 (계약 v1 기준 — docs/api/화면2_채점상세_API계약_v1.md). 화면① 스텁의 dummy_05(evaluation_id 105) 상세 건. 엣지 케이스 대표 건 포함: §10.4 총점≥컷 + 플래그3(오정보)만 → header.status_labels [\"정상\"] + risk_flagged true('● 위험' 태그 표시), 판매정보 null(비신규 — 섹션 미렌더), D1~D6 전부 해당없음(권유 전무 — N/A 칩), C3 조건부 N/A, C2 근거의 dialogue_id null(인용 대조 실패 방어 케이스 — 점프 비활성). 프론트 개발 시 스텁으로 사용 가능.",
+  "_comment": "화면② 채점 상세 API 예시 응답 (계약 v1.1 기준 — docs/api/화면2_채점상세_API계약_v1.md). 화면① 스텁의 dummy_05(evaluation_id 105) 상세 건. 엣지 케이스 대표 건 포함: §10.4 총점≥컷 + 플래그3(오정보)만 → header.status_labels [\"정상\"] + risk_flagged true('● 위험' 태그 표시), 판매정보 null(비신규 — 섹션 미렌더), D1~D6 전부 해당없음(권유 전무 — N/A 칩), C3 조건부 N/A, C2 근거의 dialogue_id null(인용 대조 실패 방어 케이스 — 점프 비활성). ★v1.1: review 블록 추가 — 이 건은 검수 전(null) 케이스. 검수 존재 케이스는 review.v1.example.json 참조. 프론트 개발 시 스텁으로 사용 가능.",
   "header": {
     "consultation_code": "dummy_05",
     "agent_id": "AGT-005",
@@ -209,5 +209,6 @@
     { "dialogue_id": 512, "dialogue_code": "dummy_05-012", "turn_order": 12, "speaker": "상담사", "spoken_at": "2026-06-26 10:21:42", "offset_sec": 102, "content": "정리해 드리면, 보험료 자동이체일이 매월 5일에서 말일로 변경되었고 다음 달 납입분부터 적용됩니다. 더 필요하신 사항 없으실까요?" },
     { "dialogue_id": 513, "dialogue_code": "dummy_05-013", "turn_order": 13, "speaker": "고객", "spoken_at": "2026-06-26 10:21:55", "offset_sec": 115, "content": "없어요. 감사합니다." },
     { "dialogue_id": 514, "dialogue_code": "dummy_05-014", "turn_order": 14, "speaker": "상담사", "spoken_at": "2026-06-26 10:22:02", "offset_sec": 122, "content": "네, 추가 문의는 언제든 고객센터로 연락 주세요. 이용해 주셔서 감사합니다. 좋은 하루 되세요." }
-  ]
+  ],
+  "review": null
 }

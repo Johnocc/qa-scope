@@ -80,10 +80,10 @@
 <div class="shell" id="shell">
 
   <div class="mock-banner">
-    ⚠ 목업 — 데이터는 팀이 준 실제 예시 <code>상담평가_출력예시_해지환급_ver1.1.json</code>(상담 C-2026-018442, 이서연 상담사)을 그대로 사용합니다. 근거 인용문·대화ID는 원본 그대로이며,
-    인용 사이를 잇는 나머지 대화 줄(예: "네 알겠습니다" 류)만 화면 완성도를 위해 제가 추가로 재구성했습니다(원본에 없던 부분, 실제 원문 아님).<br>
-    이 화면은 아직 화면④ 때처럼 영문 snake_case API 계약 문서가 없어서, LLM 출력 그대로인 한글 키 구조(출력스키마 ver2)를 직접 쓰고 있습니다 — 실 연동 전 종덕님·우현님 확인 필요.<br>
-    지금 목업에서 실제 데이터가 연결된 건 이 상담(C-2026-018442) 하나뿐입니다. 화면①의 다른 "보기"는 아직 상세 데이터가 없어 준비중 토스트만 뜹니다.
+    ⚠ 목업 — 우현님이 주신 실제 예시 응답 <code>evaluation-detail.v1.example.json</code>을 그대로 사용합니다(재구성 없음, 원본 그대로).
+    화면①의 dummy_05(한지원, evaluation_id 105) 건 상세이며, 계약 §5 엣지 케이스가 실제로 다 들어있습니다:
+    §10.4(총점 93.8≥컷인데 플래그3만 있어 "정상"+위험 점 동시 표시), 판매정보 null(비신규), D1~D6 전부 해당없음(권유 전무),
+    그리고 <b>C2 근거의 dialogue_id가 null인 인용 대조 실패 방어 케이스</b>(클릭하면 점프 대신 안내 토스트만).
   </div>
 
   <div class="tabs">
@@ -101,64 +101,95 @@
 
 <script>
 /* ============================================================
-   실 데이터: 상담평가_출력예시_해지환급_ver1.1.json 그대로.
-   실 연동 시: fetch(`/api/evaluations/${id}`) 로 교체(계약 문서 필요 — 화면④의 agent-report.v1 같은 걸 이 화면용으로도 하나 만들 것 제안).
+   화면2_채점상세_API계약_v1.md 정본 반영. 3블록 응답: header(snake_case) /
+   evaluation(출력스키마 ver2, 한글 키 — 결정1: 예외 허용, 영문 변환 안 함) / dialogues(snake_case).
+   점프 연결키는 문자열(대화ID)이 아니라 숫자 dialogue_id (결정3).
+   실 연동 시: fetch(`/api/evaluations/${evaluationId}`) 로 교체.
 ============================================================ */
-const CASE = {
-  "상담ID": "C-2026-018442",
-  "분류": {
-    "상담유형": "해지·환급",
-    "권유유형": "유지·해지방어·승환"
-  },
-  "상담사": "이서연",
-  "항목평가": [
-    { "항목코드": "A1", "충족수준": "충족", "배점": 4, "획득점수": 4, "근거대화ID": "002", "코멘트": "소속·성명 명확히 고지." },
-    { "항목코드": "A2", "충족수준": "충족", "배점": 4, "획득점수": 4, "근거대화ID": "004", "코멘트": "본인 계약 건이라 본인확인 수행, 적절." },
-    { "항목코드": "A3", "충족수준": "충족", "배점": 4, "획득점수": 4, "근거대화ID": "007", "코멘트": "용건 되물어 정확히 파악." },
-    { "항목코드": "B1", "충족수준": "충족", "배점": 8, "획득점수": 8, "근거대화ID": "010", "코멘트": "환급금·원금 손실 사실을 정확히 안내." },
-    { "항목코드": "B2", "충족수준": "부분충족", "배점": 6, "획득점수": 3, "근거대화ID": "010", "코멘트": "'해지환급금' 용어를 풀어주지 않아 고객이 한 번 되물음." },
-    { "항목코드": "B3", "충족수준": "충족", "배점": 6, "획득점수": 6, "근거대화ID": "014", "코멘트": "해지 외 대안(납입유예) 제시." },
-    { "항목코드": "B4", "충족수준": "충족", "배점": 6, "획득점수": 6, "근거대화ID": "016", "코멘트": "보류 시 사전 양해, 불필요한 반복 없음." },
-    { "항목코드": "C1", "충족수준": "충족", "배점": 6, "획득점수": 6, "근거대화ID": "011", "코멘트": "고객 상황에 적절한 공감 멘트." },
-    { "항목코드": "C2", "충족수준": "충족", "배점": 6, "획득점수": 6, "근거대화ID": "013", "코멘트": "경어·정중한 호칭 일관." },
-    { "항목코드": "C3", "충족수준": "충족", "배점": 6, "획득점수": 6, "근거대화ID": "012", "코멘트": "고객이 원금손실에 불만 표출 → 사과·공감·해결 순서로 대응." },
-    { "항목코드": "D1", "충족수준": "해당없음", "배점": 7, "획득점수": 0, "근거대화ID": null, "코멘트": "신규 권유 없음 → N/A." },
-    { "항목코드": "D2", "충족수준": "해당없음", "배점": 5, "획득점수": 0, "근거대화ID": null, "코멘트": "신규 권유 없음 → N/A." },
-    { "항목코드": "D3", "충족수준": "해당없음", "배점": 5, "획득점수": 0, "근거대화ID": null, "코멘트": "신규 권유 없음 → N/A." },
-    { "항목코드": "D4", "충족수준": "해당없음", "배점": 4, "획득점수": 0, "근거대화ID": null, "코멘트": "신규 권유 없음 → N/A." },
-    { "항목코드": "D5", "충족수준": "해당없음", "배점": 4, "획득점수": 0, "근거대화ID": null, "코멘트": "신규 권유 없음 → N/A." },
-    { "항목코드": "D6", "충족수준": "충족", "배점": 5, "획득점수": 5, "근거대화ID": "014", "코멘트": "납입유예 권유(유지·해지방어) 대상. 허위·과장·강요 없이 정상 대안 제시 → 충족." },
-    { "항목코드": "E1", "충족수준": "충족", "배점": 7, "획득점수": 7, "근거대화ID": "019", "코멘트": "처리내용 요약·이해 점검." },
-    { "항목코드": "E2", "충족수준": "충족", "배점": 7, "획득점수": 7, "근거대화ID": "021", "코멘트": "추가 채널 안내 + 정중한 종료." }
-  ],
-  "위험플래그": [],
-  "집계": { "원점수합": 72, "적용배점합": 75, "환산총점": 96.0, "위험표시여부": false, "상태라벨": "정상" }
+const HEADER = {
+  consultation_code: "dummy_05",
+  agent_id: "AGT-005",
+  agent_name: "한지원",
+  consulted_at: "2026-06-26 10:20:00",
+  consult_type: "계약변경",
+  risk_flagged: true,
+  status_labels: ["정상"] // §10.4 케이스: 위험표시여부는 true지만 라벨은 정상 — 병기 규칙은 화면① 계약 §3.3 정본
 };
 
-// 대화ID 뒤 3자리 기준. 밑줄 친 근거 인용문은 원본 그대로, 나머지는 mockup 재구성.
-const TRANSCRIPT = [
-  { id: "001", ts: "00:00", speaker: "고객",   text: "여보세요.", cited: false },
-  { id: "002", ts: "00:03", speaker: "상담사", text: "안녕하세요, 한빛생명 고객센터 상담사 이서연입니다.", cited: true },
-  { id: "003", ts: "00:07", speaker: "고객",   text: "저 가입한 종신보험 해지하고 싶어서 전화드렸어요.", cited: false },
-  { id: "004", ts: "00:12", speaker: "상담사", text: "본인 확인을 위해 성함과 생년월일 말씀 부탁드립니다.", cited: true },
-  { id: "005", ts: "00:16", speaker: "고객",   text: "홍길동이고, 생년월일은 1985년 3월 2일입니다.", cited: false },
-  { id: "006", ts: "00:20", speaker: "상담사", text: "확인 감사합니다. 잠시만 기다려 주세요.", cited: false },
-  { id: "007", ts: "00:24", speaker: "상담사", text: "그러면 지금 가입하신 종신보험을 해지하고 싶으신 거죠?", cited: true },
-  { id: "008", ts: "00:29", speaker: "고객",   text: "네, 맞아요.", cited: false },
-  { id: "009", ts: "00:31", speaker: "상담사", text: "계약 내용 조회해보겠습니다.", cited: false },
-  { id: "010", ts: "00:38", speaker: "상담사", text: "현재 해지환급금은 납입원금보다 약 80만 원 적은 320만 원으로 조회됩니다.", cited: true },
-  { id: "011", ts: "00:45", speaker: "상담사", text: "원금보다 적게 돌려받으시게 되어 많이 아쉬우시겠어요.", cited: true },
-  { id: "012", ts: "00:50", speaker: "상담사", text: "손해 보는 느낌이라 속상하시죠. 불편드려 죄송합니다. 다른 방법도 함께 살펴볼게요.", cited: true },
-  { id: "013", ts: "00:56", speaker: "상담사", text: "고객님, 천천히 말씀 주셔도 괜찮습니다.", cited: true },
-  { id: "014", ts: "01:03", speaker: "상담사", text: "당장 해지보다, 보험료 납입을 잠시 멈추는 납입유예도 가능하신데 안내드릴까요?", cited: true },
-  { id: "015", ts: "01:10", speaker: "고객",   text: "아, 그런 방법도 있었네요. 한번 설명해주세요.", cited: false },
-  { id: "016", ts: "01:14", speaker: "상담사", text: "조회에 잠시만 양해 부탁드립니다. (10초) 확인되었습니다.", cited: true },
-  { id: "017", ts: "01:28", speaker: "고객",   text: "네, 알겠습니다. 그럼 그 방법으로 할게요.", cited: false },
-  { id: "018", ts: "01:31", speaker: "상담사", text: "네, 납입유예로 처리해 드리겠습니다.", cited: false },
-  { id: "019", ts: "01:36", speaker: "상담사", text: "정리하면 오늘은 해지 보류하고 납입유예 신청하신 거예요. 더 궁금하신 점 없으실까요?", cited: true },
-  { id: "020", ts: "01:42", speaker: "고객",   text: "네, 없습니다. 감사합니다.", cited: false },
-  { id: "021", ts: "01:45", speaker: "상담사", text: "추가 문의는 고객센터나 앱으로 가능합니다. 이용해 주셔서 감사합니다.", cited: true },
+// evaluation-detail.v1.example.json 그대로(재구성 없는 원본). evaluator 관점 근거·인용은 실제 예시 값.
+const EVALUATION = {
+  "상담ID": "dummy_05",
+  "evaluation_id": 105,
+  "평가메타": { "평가주체": "AI_최종", "AI모델": "gemini-2.5-flash", "루브릭버전": "v1.5", "평가일시": "2026-07-08 21:05:11", "검증통과회차": 1 },
+  "분류": {
+    "상담유형": "계약변경",
+    "유형근거": "고객이 기존 계약의 보험료 자동이체 납입일 변경을 요청함.",
+    "권유유형": "없음",
+    "권유근거": "신규판매·유지권유 등 어떤 권유도 없음 → D영역 전체 N/A."
+  },
+  "판매정보": null,
+  "항목평가": [
+    { "항목코드": "A1", "충족수준": "충족", "배점": 4, "획득점수": 4, "코멘트": "소속·성명 명확히 고지.",
+      "근거": [{ "대화ID": "dummy_05-001", "dialogue_id": 501, "인용문": "안녕하세요, 한빛생명 고객센터 상담사 한지원입니다." }] },
+    { "항목코드": "A2", "충족수준": "충족", "배점": 4, "획득점수": 4, "코멘트": "계약 변경 건이라 본인확인 수행, 적절.",
+      "근거": [{ "대화ID": "dummy_05-003", "dialogue_id": 503, "인용문": "본인 확인을 위해 성함과 생년월일 부탁드립니다." }] },
+    { "항목코드": "A3", "충족수준": "충족", "배점": 4, "획득점수": 4, "코멘트": "용건을 되물어 정확히 파악.",
+      "근거": [{ "대화ID": "dummy_05-005", "dialogue_id": 505, "인용문": "자동이체 날짜, 그러니까 매달 보험료가 통장에서 빠져나가는 날을 다른 날로 바꾸고 싶으신 거죠?" }] },
+    { "항목코드": "B1", "충족수준": "부분충족", "배점": 8, "획득점수": 4, "코멘트": "가능 납입일을 처음에 잘못 안내(말일 누락) 후 고객 문의로 정정. 오정보 발생 → 위험플래그 3.",
+      "근거": [{ "대화ID": "dummy_05-007", "dialogue_id": 507, "인용문": "납입일은 매월 5일, 15일, 25일 중에서만 선택 가능합니다." }] },
+    { "항목코드": "B2", "충족수준": "충족", "배점": 6, "획득점수": 6, "코멘트": "전문용어(자동이체 납입일)를 일상어로 풀어 설명.",
+      "근거": [{ "대화ID": "dummy_05-005", "dialogue_id": 505, "인용문": "자동이체 날짜, 그러니까 매달 보험료가 통장에서 빠져나가는 날" }] },
+    { "항목코드": "B3", "충족수준": "충족", "배점": 6, "획득점수": 6, "코멘트": "고객 사정(월급일)에 맞는 대안(말일) 제시.",
+      "근거": [{ "대화ID": "dummy_05-009", "dialogue_id": 509, "인용문": "다시 확인해 보니 5일·15일·25일·말일 네 가지 중 선택 가능합니다. 말일로 해드릴까요?" }] },
+    { "항목코드": "B4", "충족수준": "충족", "배점": 6, "획득점수": 6, "코멘트": "보류 시 사전 양해, 지연·반복 없이 즉시 처리.",
+      "근거": [{ "대화ID": "dummy_05-011", "dialogue_id": 511, "인용문": "처리 중입니다. 잠시만 기다려 주세요. 확인되었습니다." }] },
+    { "항목코드": "C1", "충족수준": "충족", "배점": 6, "획득점수": 6, "코멘트": "고객 상황에 적절한 공감 멘트.",
+      "근거": [{ "대화ID": "dummy_05-009", "dialogue_id": 509, "인용문": "월급 들어오자마자 빠져나가면 부담되셨겠어요." }] },
+    { "항목코드": "C2", "충족수준": "충족", "배점": 6, "획득점수": 6, "코멘트": "경어·정중한 호칭 일관. (이 근거는 인용 대조 실패 예시 — dialogue_id null이면 점프 비활성, 인용문만 표시)",
+      "근거": [{ "대화ID": null, "dialogue_id": null, "인용문": "네, 고객님. 천천히 말씀 주셔도 괜찮습니다." }] },
+    { "항목코드": "C3", "충족수준": "해당없음", "배점": 6, "획득점수": 0, "코멘트": "고객 감정 표출 없음 → N/A.", "근거": [] },
+    { "항목코드": "D1", "충족수준": "해당없음", "배점": 7, "획득점수": 0, "코멘트": "권유 없음 → N/A.", "근거": [] },
+    { "항목코드": "D2", "충족수준": "해당없음", "배점": 5, "획득점수": 0, "코멘트": "권유 없음 → N/A.", "근거": [] },
+    { "항목코드": "D3", "충족수준": "해당없음", "배점": 5, "획득점수": 0, "코멘트": "권유 없음 → N/A.", "근거": [] },
+    { "항목코드": "D4", "충족수준": "해당없음", "배점": 4, "획득점수": 0, "코멘트": "권유 없음 → N/A.", "근거": [] },
+    { "항목코드": "D5", "충족수준": "해당없음", "배점": 4, "획득점수": 0, "코멘트": "권유 없음 → N/A.", "근거": [] },
+    { "항목코드": "D6", "충족수준": "해당없음", "배점": 5, "획득점수": 0, "코멘트": "어떤 권유도 없어 D6도 N/A (N/A 매핑규칙 — 권유 전무 시 D 전부 N/A).", "근거": [] },
+    { "항목코드": "E1", "충족수준": "충족", "배점": 7, "획득점수": 7, "코멘트": "처리내용 요약·이해 점검.",
+      "근거": [{ "대화ID": "dummy_05-012", "dialogue_id": 512, "인용문": "정리해 드리면, 보험료 자동이체일이 매월 5일에서 말일로 변경되었고 다음 달 납입분부터 적용됩니다." }] },
+    { "항목코드": "E2", "충족수준": "충족", "배점": 7, "획득점수": 7, "코멘트": "추가 채널 안내 + 정중한 종료.",
+      "근거": [{ "대화ID": "dummy_05-014", "dialogue_id": 514, "인용문": "추가 문의는 언제든 고객센터로 연락 주세요. 이용해 주셔서 감사합니다." }] }
+  ],
+  "위험플래그": [
+    { "규칙번호": 3, "관련항목코드": "B1", "근거": "가능 납입일을 '5일·15일·25일'로만 안내(말일 누락) — 오정보. 이후 정정했으나 규칙 3 해당." }
+  ],
+  "집계": { "원점수합": 60, "적용배점합": 64, "환산총점": 93.8, "위험표시여부": true, "상태라벨": "정상" },
+  "고객만족": { "등급": "만족", "점수": null, "근거": "초기 오안내가 있었으나 즉시 정정·대안 제시로 '네, 말일로 해주세요'라며 수긍하고 종료." },
+  "요약": "보험료 자동이체 납입일 변경 건. 가능 납입일을 처음에 잘못 안내(말일 누락)했으나 즉시 정정하고 고객 사정에 맞는 말일 이체로 변경 처리. 권유 전무로 D영역 전체 N/A.",
+  "종합피드백": "납입일 등 규정 수치는 안내 전 시스템에서 먼저 확인하는 습관이 필요합니다(B1 오정보 → 위험플래그 3). 용어 풀이·공감·마무리는 우수했습니다."
+};
+
+// dialogue_id가 실제 점프 키(숫자). dialogue_code는 표시·대조용 병행 제공(결정3). 원본 그대로(재구성 없음).
+const DIALOGUES = [
+  { dialogue_id: 501, dialogue_code: "dummy_05-001", turn_order: 1,  speaker: "상담사", offset_sec: 0,   content: "안녕하세요, 한빛생명 고객센터 상담사 한지원입니다. 무엇을 도와드릴까요?" },
+  { dialogue_id: 502, dialogue_code: "dummy_05-002", turn_order: 2,  speaker: "고객",   offset_sec: 6,   content: "네, 안녕하세요. 보험료 자동이체 날짜를 바꾸고 싶어서 전화드렸어요." },
+  { dialogue_id: 503, dialogue_code: "dummy_05-003", turn_order: 3,  speaker: "상담사", offset_sec: 14,  content: "네, 납입일 변경 도와드리겠습니다. 본인 확인을 위해 성함과 생년월일 부탁드립니다." },
+  { dialogue_id: 504, dialogue_code: "dummy_05-004", turn_order: 4,  speaker: "고객",   offset_sec: 22,  content: "박민수이고요, 1985년 3월 2일입니다." },
+  { dialogue_id: 505, dialogue_code: "dummy_05-005", turn_order: 5,  speaker: "상담사", offset_sec: 30,  content: "확인 감사합니다, 박민수 고객님. 자동이체 날짜, 그러니까 매달 보험료가 통장에서 빠져나가는 날을 다른 날로 바꾸고 싶으신 거죠?" },
+  { dialogue_id: 506, dialogue_code: "dummy_05-006", turn_order: 6,  speaker: "고객",   offset_sec: 40,  content: "네 맞아요. 지금 5일인데 월급날이 25일이라 그 뒤로 바꾸고 싶어요." },
+  { dialogue_id: 507, dialogue_code: "dummy_05-007", turn_order: 7,  speaker: "상담사", offset_sec: 48,  content: "네, 납입일은 매월 5일, 15일, 25일 중에서만 선택 가능합니다." },
+  { dialogue_id: 508, dialogue_code: "dummy_05-008", turn_order: 8,  speaker: "고객",   offset_sec: 56,  content: "25일이면 월급 들어오자마자라 좀 빠듯한데, 27일이나 말일은 안 되나요?" },
+  { dialogue_id: 509, dialogue_code: "dummy_05-009", turn_order: 9,  speaker: "상담사", offset_sec: 66,  content: "아, 죄송합니다. 월급 들어오자마자 빠져나가면 부담되셨겠어요. 다시 확인해 보니 5일·15일·25일·말일 네 가지 중 선택 가능합니다. 말일로 해드릴까요?" },
+  { dialogue_id: 510, dialogue_code: "dummy_05-010", turn_order: 10, speaker: "고객",   offset_sec: 78,  content: "네, 말일로 해주세요." },
+  { dialogue_id: 511, dialogue_code: "dummy_05-011", turn_order: 11, speaker: "상담사", offset_sec: 85,  content: "네, 처리 중입니다. 잠시만 기다려 주세요. 확인되었습니다. 다음 달부터 말일 자동이체로 변경됩니다." },
+  { dialogue_id: 512, dialogue_code: "dummy_05-012", turn_order: 12, speaker: "상담사", offset_sec: 102, content: "정리해 드리면, 보험료 자동이체일이 매월 5일에서 말일로 변경되었고 다음 달 납입분부터 적용됩니다. 더 필요하신 사항 없으실까요?" },
+  { dialogue_id: 513, dialogue_code: "dummy_05-013", turn_order: 13, speaker: "고객",   offset_sec: 115, content: "없어요. 감사합니다." },
+  { dialogue_id: 514, dialogue_code: "dummy_05-014", turn_order: 14, speaker: "상담사", offset_sec: 122, content: "네, 추가 문의는 언제든 고객센터로 연락 주세요. 이용해 주셔서 감사합니다. 좋은 하루 되세요." },
 ];
+
+function formatTs(offsetSec){
+  const m = Math.floor(offsetSec/60), s = offsetSec%60;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
 
 const ITEM_NAMES = {
   A1:"맞이인사 및 소속·성명 밝히기", A2:"고객 본인확인", A3:"경청 및 용건·니즈 파악",
@@ -168,6 +199,7 @@ const ITEM_NAMES = {
   D4:"면책·부지급 사유 설명", D5:"청약철회·해피콜 안내", D6:"허위·과장 및 부당권유 금지",
   E1:"처리내용 재확인·이해 점검", E2:"종료 인사·추가 안내"
 };
+// 영역 표시명은 화면③·④와 통일(화면④ 계약 §3.2·v1.3): C=태도·공감. '경청'은 A3(경청 및 용건·니즈 파악)와 겹쳐 금지.
 const DOMAIN_NAMES = { A:"상담 도입", B:"업무처리", C:"태도·공감", D:"보험특화(불완전판매 방지)", E:"상담 마무리" };
 
 function toast(msg){
@@ -187,29 +219,25 @@ function levelClass(level){
   return ""; // 해당없음
 }
 
-function renderNotFound(id){
+function renderNotFound(evaluationId){
   document.getElementById("content").innerHTML = `
     <div class="card empty-state">
-      <p>상담번호 <b>${id}</b>의 상세 데이터는 이 목업에 없습니다.</p>
-      <p style="font-size:12px;">지금 완전한 예시 데이터가 있는 건은 <b>C-2026-018442</b> 하나뿐입니다.</p>
-      <p><a href="화면2_채점상세_목업.html?id=C-2026-018442" class="btn" style="text-decoration:none;display:inline-block;margin-top:8px;">예시 데이터 보기 →</a></p>
+      <p>evaluation_id <b>${evaluationId}</b>의 상세 데이터는 이 목업에 없습니다.</p>
+      <p style="font-size:12px;">지금 완전한 예시 데이터가 있는 건은 <b>evaluation_id 105</b>(dummy_05, 한지원) 하나뿐입니다.</p>
+      <p><a href="화면2_채점상세_목업.html?evaluation_id=105" class="btn" style="text-decoration:none;display:inline-block;margin-top:8px;">예시 데이터 보기 →</a></p>
     </div>`;
 }
 
-function renderCase(data){
-  const params = new URLSearchParams(location.search);
-  const label = data.집계.상태라벨;
-  const riskFlagged = data.집계.위험표시여부;
-
+function renderCase(header, evaluation, dialogues){
   document.getElementById("content").innerHTML = `
     <div class="topbar">
       <div>
         <a class="back-link" href="화면1_채점결과목록_목업.html">← 목록으로</a>
         <div class="title-row">
-          <h1>${data.상담ID}</h1>
-          <span class="meta-chip">${data.상담사} · ${data.분류.상담유형}</span>
-          ${riskFlagged ? '<span class="meta-chip" style="color:var(--danger-text);">● 위험</span>' : ''}
-          <span class="status-pill ${statusClassName(label)}">${label}</span>
+          <h1>${header.consultation_code}</h1>
+          <span class="meta-chip">${header.agent_name} · ${header.consult_type}</span>
+          ${header.risk_flagged ? '<span class="meta-chip" style="color:var(--danger-text);">● 위험</span>' : ''}
+          ${header.status_labels.map(l=>`<span class="status-pill ${statusClassName(l)}">${l}</span>`).join(" ")}
         </div>
       </div>
     </div>
@@ -223,7 +251,7 @@ function renderCase(data){
         <div class="item-list" id="itemList"></div>
         <div class="total-row">
           <span>총점</span>
-          <span class="big">${data.집계.환산총점} / 100</span>
+          <span class="big">${evaluation.집계.환산총점} / 100</span>
         </div>
         <div class="comment-box" id="commentBox">목업: 실제 코멘트 저장 기능은 다음 단계에서 구현됩니다.</div>
         <div class="actions-bar">
@@ -233,19 +261,24 @@ function renderCase(data){
         </div>
       </div>
     </div>
+    <div class="card" style="margin-top:16px;">
+      <p class="section-title">요약 · 종합피드백</p>
+      <p style="font-size:13px;margin:0 0 10px;">${evaluation.요약}</p>
+      <p style="font-size:13px;color:var(--sub);margin:0;">${evaluation.종합피드백}</p>
+    </div>
   `;
 
-  // 좌측 원문
+  // 좌측 원문 — turn_order 오름차순, dialogue_id를 DOM id로 사용(숫자 점프 키)
   const transcriptEl = document.getElementById("transcript");
-  transcriptEl.innerHTML = TRANSCRIPT.map(t => `
-    <div class="turn ${t.speaker==='상담사'?'agent':'customer'}" id="turn-${t.id}">
-      <span class="ts">[${t.ts}]</span><span class="speaker">${t.speaker}:</span>${t.text}
+  transcriptEl.innerHTML = [...dialogues].sort((a,b)=>a.turn_order-b.turn_order).map(d => `
+    <div class="turn ${d.speaker==='상담사'?'agent':'customer'}" id="turn-${d.dialogue_id}">
+      <span class="ts">[${formatTs(d.offset_sec)}]</span><span class="speaker">${d.speaker}:</span>${d.content}
     </div>
   `).join("");
 
-  // 우측 항목 목록 (영역별 그룹)
+  // 우측 항목 목록 (영역별 그룹) — 출력스키마 ver2 한글 키 그대로(결정1)
   const byDomain = {};
-  data.항목평가.forEach(it => { const d = it.항목코드[0]; (byDomain[d] ??= []).push(it); });
+  evaluation.항목평가.forEach(it => { const d = it.항목코드[0]; (byDomain[d] ??= []).push(it); });
 
   const itemListEl = document.getElementById("itemList");
   itemListEl.innerHTML = "";
@@ -253,8 +286,12 @@ function renderCase(data){
     itemListEl.innerHTML += `<div class="domain-header">${d}. ${DOMAIN_NAMES[d]}</div>`;
     byDomain[d].forEach(it => {
       const isNA = it.충족수준 === "해당없음";
+      const hasEvidence = !!(it.근거 && it.근거.length);
+      // 근거가 여러 개면 첫 근거로 점프(계약 §4-2). dialogue_id가 점프 키(숫자), 대화ID는 표시용.
+      const firstEvidence = hasEvidence ? it.근거[0] : null;
+      const jumpId = (firstEvidence && firstEvidence.dialogue_id != null) ? firstEvidence.dialogue_id : "";
       itemListEl.innerHTML += `
-        <div class="item-row ${isNA?'na':''}" data-code="${it.항목코드}" data-jump="${it.근거대화ID||''}">
+        <div class="item-row ${isNA?'na':''}" data-code="${it.항목코드}" data-jump="${jumpId}" data-has-evidence="${hasEvidence}">
           <span><span class="code">${it.항목코드}</span>${ITEM_NAMES[it.항목코드]}</span>
           <span class="score">
             ${isNA ? '<span class="meta-chip">N/A</span>' : `<span class="status-pill ${levelClass(it.충족수준)}">${it.충족수준}</span> ${it.획득점수}/${it.배점}`}
@@ -266,24 +303,35 @@ function renderCase(data){
   itemListEl.querySelectorAll(".item-row").forEach(row => {
     row.addEventListener("click", () => {
       const jump = row.getAttribute("data-jump");
+      const hasEvidence = row.getAttribute("data-has-evidence") === "true";
       itemListEl.querySelectorAll(".item-row").forEach(r=>r.classList.remove("selected"));
       row.classList.add("selected");
-      if(!jump){ toast("이 항목은 해당없음(N/A)이라 근거 발화가 없습니다."); return; }
       document.querySelectorAll(".turn").forEach(t=>t.classList.remove("highlight"));
-      const target = document.getElementById(`turn-${jump}`);
-      if(target){
-        target.classList.add("highlight");
-        // 일부 구형/제한된 뷰어에는 scrollIntoView가 없을 수 있어 방어적으로 체크(이전 Chart.js 사고 재발 방지).
-        if(typeof target.scrollIntoView === "function"){
-          try { target.scrollIntoView({ behavior: "smooth", block: "center" }); } catch(e){ /* 무시 */ }
+      if(jump !== ""){
+        const target = document.getElementById(`turn-${jump}`);
+        if(target){
+          target.classList.add("highlight");
+          // 일부 구형/제한된 뷰어에는 scrollIntoView가 없을 수 있어 방어적으로 체크(이전 Chart.js 사고 재발 방지).
+          if(typeof target.scrollIntoView === "function"){
+            try { target.scrollIntoView({ behavior: "smooth", block: "center" }); } catch(e){ /* 무시 */ }
+          }
+          return;
         }
+      }
+      if(hasEvidence){
+        // dialogue_id === null (인용 대조 실패, 계약 §4-4) — 근거는 있으나 점프는 안 됨
+        toast("근거 발화를 특정할 수 없는 항목입니다(인용문만 표시).");
+      } else {
+        toast("이 항목은 해당없음(N/A)이라 근거 발화가 없습니다.");
       }
     });
   });
 
   document.getElementById("footnote").innerHTML = `
-    * 항목명·배점은 루브릭 v1.5 고정값. 상태·집계는 항목평가에서 코드가 재계산한 값(원본 예시의 집계와 동일 — LLM 산출값 그대로 신뢰하지 않는다는 원칙과 일치).<br>
-    * "N/A"로 표시된 D1~D5는 이 상담에 신규 권유가 없어 해당없음 처리된 것(문제가 있었던 게 아님) — CLAUDE.md §5.3 N/A 규칙.
+    * <code>evaluation</code> 블록은 출력스키마 ver2 한글 키 그대로입니다(화면② 계약 결정1 — 앱 API 영문 규약의 예외 허용). 항목명·영역명은 응답에 없어 프론트 상수(<code>ITEM_NAMES</code>/<code>DOMAIN_NAMES</code>)로 유지합니다.<br>
+    * 점프는 <code>근거[].dialogue_id</code>(숫자, 인용 대조로 확정된 내부 키) 기준. <code>대화ID</code>(예: C-2026-018442-002)는 표시·대조용으로 병행 제공됩니다.<br>
+    * "N/A"로 표시된 D1~D5는 이 상담에 신규 권유가 없어 해당없음 처리된 것(문제가 있었던 게 아님) — CLAUDE.md §5.3 N/A 규칙.<br>
+    * <b>evaluation_id는 재채점 시 새로 발급됩니다.</b> URL 북마크·외부 저장 키로 쓰지 않습니다(팀 결정 2026-07-06).
   `;
 }
 
@@ -293,11 +341,12 @@ function toggleComment(){
 
 try {
   const params = new URLSearchParams(location.search);
-  const id = params.get("id");
-  if(!id || id === CASE.상담ID){
-    renderCase(CASE);
+  const evaluationIdParam = params.get("evaluation_id");
+  const requestedId = evaluationIdParam === null ? EVALUATION.evaluation_id : Number(evaluationIdParam);
+  if(requestedId === EVALUATION.evaluation_id){
+    renderCase(HEADER, EVALUATION, DIALOGUES);
   } else {
-    renderNotFound(id);
+    renderNotFound(evaluationIdParam);
   }
 } catch (err) {
   console.error("렌더링 오류:", err);

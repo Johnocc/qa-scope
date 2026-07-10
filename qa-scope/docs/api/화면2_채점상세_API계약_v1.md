@@ -1,4 +1,4 @@
-# 화면② 채점 상세 — API 응답 계약 v1
+# 화면② 채점 상세 — API 응답 계약 v1.1
 
 > **목적:** 프론트엔드(화면② 목업 → Next.js 이식)와 백엔드가 병렬로 작업하기 위한
 > **데이터 약속 문서**다. 화면④ 계약과 같은 원칙을 따르되,
@@ -6,6 +6,10 @@
 > `lib/db/evaluationRepo.ts → getFullEvaluation()`).
 > 따라서 이 문서는 "새 설계"가 아니라 **현재 구현을 정본화**하고,
 > 목업 헤더에 필요한 최소 보강(`header` 블록)을 추가로 확정한 것이다.
+>
+> **v1.1 (2026-07-11):** 검수(리뷰) 쓰기 계약 확정(`검수_쓰기_API계약_v1.md`,
+> 2026-07-10)에 따라 응답에 **`review` 블록**(§3.4)을 추가했다. 검수가 없으면
+> `null` — 기존 3블록만 쓰는 프론트 코드는 무수정으로 동작한다.
 
 ---
 
@@ -51,7 +55,7 @@ GET /api/evaluations/{evaluation_id}
 
 ---
 
-## 3. 응답 구조 (블록 3개)
+## 3. 응답 구조 (블록 4개 — ★v1.1에서 `review` 추가)
 
 화면 요소와의 대응:
 
@@ -60,6 +64,7 @@ GET /api/evaluations/{evaluation_id}
 | `header` | 상단 헤더 (상담번호·상담사·유형·위험 태그·상태 배지) | snake_case |
 | `evaluation` | 우측 패널 (18항목·총점·플래그·요약) | **ver2 한글 키** (결정 1) |
 | `dialogues` | 좌측 상담 원문 (turn_order 순) | snake_case |
+| `review` ★v1.1 | 하단 검수 영역 (검수 상태·검수자·코멘트·수정 내역·유효 점수). 검수 없으면 `null` | snake_case |
 
 ### 3.1 `header` — 상단 헤더 (★신규 보강 — §6 남은 일)
 
@@ -126,6 +131,30 @@ GET /api/evaluations/{evaluation_id}
 | `offset_sec` | number\|null | 상담 시작 기준 상대 초 → 목업의 `[00:05]` 타임스탬프 표기는 이 값으로 렌더 (`null`이면 `spoken_at` 차이로 대체 가능) |
 | `content` | string | 발화 원문 |
 
+### 3.4 `review` — 검수 블록 (★v1.1 신설 — 검수 없으면 `null`)
+
+형태는 **검수 쓰기 계약 §3.1 응답의 `review`와 동일** (단일 정의 — 정본은
+`검수_쓰기_API계약_v1.md`). 스텁: `schemas/review.v1.example.json`.
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `review_id` | number | 검수 PK |
+| `evaluation_id` | number | 대상 평가 에코 |
+| `review_status` | string | `"검수중"` / `"확정"` — 확정 건은 재채점 기본 스킵 보호 |
+| `reviewer` | string | 검수자 (MVP: 자유 문자열) |
+| `review_comment` | string\|null | 검수 코멘트 |
+| `overrides` | array | 항목별 수정 내역 `{item_code, level_original, level_override, override_reason}` — 수정한 항목만. 쓰기 v0 단계에서는 항상 `[]` |
+| `effective` | object | 검수 반영 유효 집계 `{final_score, status_label, risk_flagged, status_labels[]}` — override 없으면 AI 값과 동일 |
+| `reviewed_at` | string(date-time) | 마지막 검수 수정 시각 |
+
+**프론트 표시 규칙 (검수 쓰기 계약 §4 — 이원화):**
+- 총점·상태 배지는 `review.effective` 우선, `review === null`이면 AI 원본
+  (`집계`·`header.status_labels`) — `COALESCE(유효값, AI 원본)`.
+- `overrides[]`는 AI 판정(`level_original`) vs 검수자 판정(`level_override`)
+  diff로 병기 표시.
+- 검수 저장·철회는 별도 쓰기 API — `PUT`/`DELETE /api/evaluations/{id}/review`
+  (요청·응답·에러는 검수 쓰기 계약 §3.1·§3.2 정본).
+
 ---
 
 ## 4. 점프 동작 규약 (프론트 구현 기준)
@@ -148,6 +177,8 @@ GET /api/evaluations/{evaluation_id}
 | `위험플래그: []` + `상태라벨: "정상"` | 위험 태그·빨간 표시 없음 |
 | 총점 ≥ 컷 + 플래그 3·4만 (§10.4) | `header.status_labels: ["정상"]` + `header.risk_flagged: true` → "● 위험" 태그는 표시 |
 | `dialogues: []` (원문 유실) | 좌측 빈 상태 표시 + 우측 점수는 정상 렌더 (점프만 비활성) |
+| `review: null` (검수 없음) ★v1.1 | 검수 영역은 "검수 전" 상태로 표시 — 총점·배지는 AI 원본 그대로 |
+| 재채점 후 조회 ★v1.1 | 새 평가의 `review`는 `null` (검수는 자동 승계되지 않음 — 쓰기 계약 §5. 이전 검수는 3-E '검수폐기' 로그에 보존) |
 
 ---
 
@@ -157,12 +188,19 @@ GET /api/evaluations/{evaluation_id}
       + `status_labels` 계산(화면① 계약 §3.3 규칙 재사용 — `lib/db/statusLabels.ts`
       공용 헬퍼) 후 응답에 추가. 프론트 스텁: `schemas/evaluation-detail.v1.example.json`
       (2026-07-09 완료)
-- [ ] 화면② 목업의 단일 `근거대화ID` → 근거 배열(`근거[].dialogue_id`) 기준으로 프론트 이식
-- [ ] 검수확정·점수수정·코멘트 저장 API는 **이 계약 범위 밖** (쓰기 계약은 별도 문서로 —
-      MVP 화면 이식 우선)
+- [x] 화면② 목업의 단일 `근거대화ID` → 근거 배열(`근거[].dialogue_id`) 기준으로 프론트 이식
+      (2026-07-10 목업 `화면2_채점상세_목업_new.html`에서 반영 확인 — §4 규약 1·3·4 전부 구현)
+- [x] 검수확정·점수수정·코멘트 저장 API는 별도 문서로 → `검수_쓰기_API계약_v1.md`
+      확정 (2026-07-10) + 스키마 v5(3-F·3-G)·reviewRepo·라우트 구현 (2026-07-11)
+- [x] GET 응답에 `review` 블록 추가 (§3.4) + 스텁 갱신 (2026-07-11)
+- [ ] FE — 검수 영역 UI 반영: `review` 블록 렌더 + 쓰기 3종 연결.
+      필수 요건은 검수 쓰기 계약 참조 (`reviewer` 입력 / `review_status` 배지 /
+      확정 해제(PUT)·철회(DELETE) 동선 분리 / 총점 `effective` 우선 표시 /
+      점수수정은 충족수준 4택 + 사유 — 임의 점수 입력 금지)
 
 ## 7. 변경 이력
 
 | 버전 | 일자 | 내용 |
 |---|---|---|
 | v1 | 2026-07-08 | 최초 확정 — 기존 구현(`evaluation` ver2 한글 키 + `dialogues`) 정본화, `header` 블록 보강 확정, 점프 규약·근거 배열 명세 |
+| v1.1 | 2026-07-11 | `review` 블록 추가 (§3.4 — 검수 쓰기 계약 v1 확정 후속). 엣지 케이스 2행 추가(검수 없음·재채점 후 미승계), §6 남은 일 3건 완료 처리 + FE 검수 UI 항목 신설, 스텁에 `review` 반영 |
