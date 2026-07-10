@@ -146,8 +146,8 @@
 
 <script>
 /* ============================================================
-   데이터 — 골든셋 7건(test/golden/golden_set.json 요약, consultation_code=dummy_01~07)
-   + 데모용 엣지케이스 2건(dummy_08, C-2026-018442).
+   데이터 — evaluations-list.v1.example.json 그대로. 시드 더미 7건(consultation_code=dummy_01~07)
+   + 미배정(unknown) 1건(dummy_08).
    실 연동 시: 이 배열 대신
      const EVALUATIONS = await fetch('/api/evaluations?...').then(r=>r.json()).then(d=>d.items);
    로 교체. 필드명은 화면1_채점결과목록_API계약_v1.md 정본 그대로:
