@@ -296,11 +296,14 @@ CREATE TABLE IF NOT EXISTS `evaluation_review_overrides` (
 - [x] `lib/db/reviewRepo.ts` 신설 (업서트·철회·유효 집계 물질화 + 3-E '검수폐기' 보존 헬퍼 `preserveReviewOnConn` + 배치 스킵 판정 `hasConfirmedReview`) (2026-07-11)
 - [x] 라우트 2종 — `app/api/evaluations/[id]/review/route.ts` (PUT·DELETE) (2026-07-11)
 - [x] `saveFinalEvaluation`에 `onConfirmedReview: 'skip'(기본) | 'force'` 옵션 (결정 3-A) + score-all
-      **채점 전 사전 조회 스킵**(`hasConfirmedReview`) + `--force` 플래그 + 리포트에 스킵 카운트 (2026-07-11)
-      — `saveFinalEvaluation`은 덮어쓰기 직전 검수를 `reviewRepo.preserveReviewOnConn`으로 3-E '검수폐기' 보존
-      (확정+force·검수중 재채점 모두 — 보존 규약 통일). 확정+skip은 저장을 건너뛰고 기존 정본 유지(최후 방어선,
-      `{skipped:true}` 반환). score-all은 채점 시작 전 `findConsultation`→`hasConfirmedReview`로 사전 스킵(LLM 미호출),
-      `--force` 시 사전 스킵 우회 + `onConfirmedReview:'force'` 전파. 옵션은 `persistEvaluation`·`scoreConsultation`에도 관통.
+      **채점 전 사전 조회 스킵**(`hasConfirmedReview`) + `--force-reviewed` 플래그 + 리포트에 스킵 카운트 (2026-07-11)
+      — 확정+skip은 `ConfirmedReviewSkipError`를 던져 덮어쓰기 중단(최후 방어선 — 예외라서 미처리 호출부도
+      조용히 지나칠 수 없음). 덮어쓰기 직전 검수는 `reviewRepo.preserveReviewOnConn`으로 3-E '검수폐기' 보존
+      (확정+force·검수중 재채점 모두 — 보존 규약 통일, 검수 없으면 no-op). score-all은 채점 시작 전
+      `findConsultation`→`hasConfirmedReview`로 사전 스킵(LLM 미호출)하고, 사전 조회~저장 사이 경합은
+      `ConfirmedReviewSkipError` catch로 스킵 집계. persist-from-json도 동일 정책(+`--force-reviewed`).
+      옵션은 `persistEvaluation`·`scoreConsultation`에 관통. 4단계 실DB 검증 통과
+      (검수중 재채점=성공+검수폐기 보존 / 확정 기본=중단·무손상 / force=보존 후 교체 / 사전 스킵 판정).
 - [x] 화면② 계약 v1.1 개정 (`review` 블록 §3.4 추가) + 스텁 갱신 (`evaluation-detail.v1.example.json`에 `review: null`, 검수 존재 케이스는 `review.v1.example.json` 신설) (2026-07-11)
 - [ ] (쓰기 v1 개방 시) 화면①③④ 쿼리 COALESCE 유효값 레이어 + verify-consistency에 유효값 정합 검사 추가 + §4 미결 세부(플래그 소거 여부) 확정
       + 화면① 계약 v1.1 개정 안건: `status` 필터·정렬의 기준(저장 라벨 vs 유효 라벨) 정의
@@ -312,4 +315,4 @@ CREATE TABLE IF NOT EXISTS `evaluation_review_overrides` (
 | v0 초안 | 2026-07-10 | 최초 작성 — 설계 결정 3건 선택지 표(기본안: 별도 테이블+충족수준 단위 수정 / 화면=유효값·검증=원본 이원화+단계 개방 / 재채점 기본 스킵+force), AXDB_v5 스키마 제안, 엔드포인트 2종, 미결 세부 1건(플래그 소거) 명시 |
 | v1 | 2026-07-10 | 결정 3건 전부 기본안 A로 팀 합의 확정 (결정 2 기업담당자 컨펌 여부만 미정 잔존). 보완 반영: ① 배치 스킵 판정을 채점 시작 전 사전 조회로 명시 (LLM 비용 낭비 방지, 저장 단계 skip은 최후 방어선) ② 검수 보존 규약 통일 — 3-F 삭제의 모든 경로(force·검수중 재채점·철회)에서 3-E '검수폐기' 선보존 ③ 확정 해제(확정→검수중) 전이 허용 명시 + 철회와 역할 구분 ④ 오기 수정: 컷 로드 "조회 시점"→"저장 시점" (+ 3-A와 동일 의미론 주석) ⑤ reviewed_at 확정/수정 시각 미구분 한계 주석 |
 | v1 (구현 반영) | 2026-07-11 | §3.2 DELETE 성공 응답 본문 명세 추가(`200 {"deleted": true}` — 라우트 구현 시 확정). §6 남은 일 진척 갱신 (스키마 v5·reviewRepo·라우트 2종·화면② 계약 v1.1 완료) |
-| v1 (구현 반영) | 2026-07-11 | 결정 3-A 재채점 안전장치 구현 완료. `saveFinalEvaluation`에 `onConfirmedReview` 옵션(기본 skip=최후 방어선, force=검수폐기 보존 후 재채점) + `{evaluationId, skipped}` 반환. score-all 채점 전 사전 조회 스킵(`hasConfirmedReview`) + `--force` 플래그 + 스킵 카운트 리포트. 검수 보존은 3-F 삭제 전 `preserveReviewOnConn`으로 통일(force·검수중 재채점 공통). 옵션 `persistEvaluation`·`scoreConsultation` 관통 (§6 남은 일 갱신) |
+| v1 (구현 반영) | 2026-07-11 | 결정 3-A 재채점 안전장치 구현 완료. 병행 구현 2건(반환 플래그 방식 / 예외 방식) 비교 검토 후 **예외 방식으로 통합** — 확정+skip 시 `saveFinalEvaluation`이 `ConfirmedReviewSkipError`를 던짐(미처리 호출부가 스킵을 조용히 지나칠 수 없는 안전장치 속성 우선). score-all 채점 전 사전 조회 스킵(`hasConfirmedReview`) + 경합 시 저장 시점 catch + `--force-reviewed` 플래그 + 스킵 카운트 리포트. persist-from-json 동일 정책. 검수 보존은 3-F 삭제 전 `preserveReviewOnConn`으로 통일(force·검수중 재채점 공통). 통합 시 이식: persist-from-json 스킵을 '적재 실패'로 오표기하지 않는 처리 + score-all `pool.end()` 종료 정리 (§6 남은 일 갱신) |

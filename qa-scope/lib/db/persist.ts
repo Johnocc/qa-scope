@@ -35,12 +35,10 @@ export interface PersistResult {
   evaluationId: number
   /** 원문 대조에 실패한(환각 의심) 근거 목록 — 로그·검토용 */
   unmatchedQuotes: { 항목코드: string; 대화ID: string | number; reason: string }[]
-  /** 확정 검수 보호로 저장을 건너뛴 경우 true (기존 정본 유지 — 계약 결정 3-A) */
-  skipped: boolean
 }
 
 export interface PersistOptions {
-  /** 확정 검수 존재 건 재채점 처리 — saveFinalEvaluation에 그대로 전달 (기본 'skip') */
+  /** 확정 검수 존재 건 재채점 정책 — saveFinalEvaluation으로 전달 (검수 계약 결정 3) */
   onConfirmedReview?: 'skip' | 'force'
 }
 
@@ -102,9 +100,8 @@ export async function persistEvaluation(
     }
   }
 
-  // ③ 저장 — 재채점 덮어쓰기(정본교체·검수폐기 보존 포함)는 saveFinalEvaluation 트랜잭션이 수행.
-  //    확정 검수 존재 건은 onConfirmedReview에 따라 스킵(기본)하거나 force로 폐기·재채점.
-  const { evaluationId, skipped } = await saveFinalEvaluation(consultationId, final, {
+  // ③ 저장 — 재채점 덮어쓰기(정본교체 보존 포함)는 saveFinalEvaluation 트랜잭션이 수행
+  const evaluationId = await saveFinalEvaluation(consultationId, final, {
     evaluator: 'AI_최종',
     aiModel: final.평가메타?.AI모델 ?? null,
     rubricVersion: final.평가메타?.루브릭버전 ?? 'v1.5',
@@ -112,5 +109,5 @@ export async function persistEvaluation(
     onConfirmedReview: options.onConfirmedReview,
   })
 
-  return { consultationId, evaluationId, unmatchedQuotes, skipped }
+  return { consultationId, evaluationId, unmatchedQuotes }
 }
