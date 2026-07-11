@@ -46,9 +46,21 @@ function stringifyFlagEvidence(evidence: unknown): string {
   return one(evidence)
 }
 
+export interface ScoreOptions {
+  /**
+   * 확정 검수 존재 건 재채점 처리 (계약 결정 3-A) — persistEvaluation→saveFinalEvaluation에 전달.
+   * 기본 'skip': 확정 검수가 걸린 정본은 저장 단계에서 건너뛴다(최후 방어선).
+   * 'force': 검수를 3-E '검수폐기'로 보존 후 폐기·재채점.
+   * ※ 배치의 사전 스킵(hasConfirmedReview)은 LLM 호출 전에 걸러 비용을 아끼는 1차 방어선이고,
+   *   이 옵션은 저장 단계 2차 방어선이다.
+   */
+  onConfirmedReview?: 'skip' | 'force'
+}
+
 export async function scoreConsultation(
   상담ID: string,
-  rawText: string
+  rawText: string,
+  opts: ScoreOptions = {}
 ): Promise<EvalOutput> {
   // 1. 발화 파싱
   const { utterances } = parseTranscript(rawText)
@@ -225,15 +237,27 @@ export async function scoreConsultation(
 
   // 12. 저장 — 로컬 JSON(감사용 백업) + MySQL(조회 정본)
   await saveResult(final)
-  const persisted = await persistEvaluation(상담ID, utterances, final)
+  const persisted = await persistEvaluation(상담ID, utterances, final, {
+    onConfirmedReview: opts.onConfirmedReview,
+  })
   if (persisted.unmatchedQuotes.length > 0) {
     console.warn(
       `⚠ 인용 원문대조 불일치 ${persisted.unmatchedQuotes.length}건:`,
       persisted.unmatchedQuotes,
     )
   }
-  console.log(
-    `✓ MySQL 저장 완료: consultation_id=${persisted.consultationId}, evaluation_id=${persisted.evaluationId}`,
-  )
+  if (persisted.skipped) {
+    // 최후 방어선 발동 — 확정 검수가 걸린 정본이라 저장을 건너뛰고 기존 평가를 유지했다.
+    // 로컬 JSON 백업(saveResult)은 이미 갱신됐으나 DB 정본은 불변. 재채점하려면 force.
+    console.warn(
+      `⚠ 확정 검수 존재로 MySQL 저장 스킵(최후 방어선): ` +
+        `consultation_id=${persisted.consultationId}, ` +
+        `기존 evaluation_id=${persisted.evaluationId} 유지 — 재채점하려면 force 지정`,
+    )
+  } else {
+    console.log(
+      `✓ MySQL 저장 완료: consultation_id=${persisted.consultationId}, evaluation_id=${persisted.evaluationId}`,
+    )
+  }
   return final
 }

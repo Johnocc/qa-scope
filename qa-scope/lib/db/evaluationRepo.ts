@@ -20,6 +20,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { computeAggregates } from '../scoring/scoring';
 import { MAX_SCORES, ITEM_CODES, expectedScore, type ItemCode } from '../scoring/constants';
 import * as configRepo from './configRepo';
+import { preserveReviewOnConn } from './reviewRepo';
 
 export interface SaveOptions {
   evaluator?: 'AI_최종' | '사람_골든셋';
@@ -28,6 +29,21 @@ export interface SaveOptions {
   verifyAttempts?: number;
   /** "항목코드|근거인덱스" → 확정 dialogue_id */
   evidenceDialogueIds?: Map<string, number>;
+  /**
+   * 확정 검수 존재 건 재채점 처리 (계약 결정 3-A). 기본 'skip'.
+   *  - 'skip'  = 확정 검수가 걸린 정본은 덮어쓰지 않고 그대로 둔다 (최후 방어선).
+   *              배치는 hasConfirmedReview로 채점 시작 전 이미 거르지만, 배치 외
+   *              진입 경로(단건 재채점 등)를 위한 이중 안전망.
+   *  - 'force' = 검수 전문을 3-E '검수폐기'로 보존한 뒤 CASCADE 삭제하고 재채점.
+   *              의도적 재채점만 명시적으로 force.
+   */
+  onConfirmedReview?: 'skip' | 'force';
+}
+
+/** saveFinalEvaluation 결과 — skipped=true면 확정 검수 보호로 저장을 건너뛰고 기존 정본 유지 */
+export interface SaveResult {
+  evaluationId: number;
+  skipped: boolean;
 }
 
 export interface DashboardQuery {
@@ -47,19 +63,20 @@ export interface DashboardQuery {
  * 최종 평가 저장.
  * @param consultationId 내부 PK (상담코드 → PK 변환은 호출부/파이프라인 책임)
  * @param payload 출력스키마 ver2 JSON (형식검증 통과본)
- * @returns evaluationId
+ * @returns { evaluationId, skipped } — skipped=true면 확정 검수 보호로 저장을 건너뜀
  */
 export async function saveFinalEvaluation(
   consultationId: number,
   payload: any,
   options: SaveOptions = {},
-): Promise<number> {
+): Promise<SaveResult> {
   const {
     evaluator = 'AI_최종',
     aiModel = null,
     rubricVersion = 'v1.5',
     verifyAttempts = 1,
     evidenceDialogueIds = new Map<string, number>(),
+    onConfirmedReview = 'skip',
   } = options;
 
   const items: any[] = payload['항목평가'];
@@ -84,6 +101,33 @@ export async function saveFinalEvaluation(
     );
     const prev = prevRows[0];
     if (prev) {
+      // 재채점이 기존 정본을 덮어쓰기 전에, 이 평가에 걸린 검수(3-F)를 먼저 처리한다.
+      // 3-F는 evaluation_id FK ON DELETE CASCADE라 아래 master DELETE 시 함께 지워지므로,
+      // ① 확정 검수 스킵 판정과 ② 검수 전문 보존을 삭제 전에 수행한다 (계약 결정 3).
+      const [revRows] = await conn.query<RowDataPacket[]>(
+        `SELECT review_status FROM evaluation_reviews WHERE evaluation_id = ? FOR UPDATE`,
+        [prev.evaluation_id],
+      );
+      const review = revRows[0];
+
+      // 최후 방어선(계약 결정 3-A): 확정 검수 존재 + 기본(skip) → 덮어쓰지 않고 기존 정본 유지.
+      // 배치(score-all)는 채점 시작 전 hasConfirmedReview로 이미 거르지만, 배치 외 진입 경로
+      // (단건 재채점 API 등)를 위한 이중 안전망. 의도적 재채점만 onConfirmedReview='force'.
+      if (review?.review_status === '확정' && onConfirmedReview === 'skip') {
+        return { evaluationId: prev.evaluation_id, skipped: true };
+      }
+
+      // 검수가 있으면(확정+force 든 미확정 검수중이든) 삭제 직전 3-E '검수폐기'로 전문 보존.
+      // 3-F 행이 지워지는 모든 경로에서 보존 — 보존 없는 검수 삭제 경로를 만들지 않는다
+      // (계약 결정 3 부속·보존 규약 통일). preserveReviewOnConn은 검수 없으면 no-op.
+      if (review) {
+        const reason =
+          review.review_status === '확정'
+            ? '재채점 force로 확정 검수 폐기'
+            : '재채점 덮어쓰기로 검수중 검수 폐기';
+        await preserveReviewOnConn(conn, consultationId, prev.evaluation_id, reason);
+      }
+
       // attempt_no는 상담 기준 이어 세기 — UNIQUE(consultation_id, attempt_no, stage) 충돌 방지
       const [seqRows] = await conn.query<RowDataPacket[]>(
         `SELECT COALESCE(MAX(attempt_no), 0) + 1 AS next_no
@@ -188,7 +232,7 @@ export async function saveFinalEvaluation(
       );
     }
 
-    return evaluationId;
+    return { evaluationId, skipped: false };
   });
 }
 
