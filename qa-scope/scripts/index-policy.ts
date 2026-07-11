@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { ChromaClient } from 'chromadb'
+import { ChromaClient, CloudClient } from 'chromadb'
 import { chunkPolicy } from '../lib/rag/chunk.ts'
 import { embedText } from '../lib/rag/embed.ts'
 
@@ -7,13 +7,18 @@ const COLLECTION_NAME = 'policy_v2'
 const POLICY_PATH = 'docs/rag/한빛생명_가상약관_v2.0.md'
 
 ;(async () => {
-  const client = new ChromaClient({ host: 'localhost', port: 8000 })
+  const isCloud = !!process.env.CHROMA_API_KEY
+  const client = isCloud
+    ? new CloudClient()                                   // 배포: CHROMA_API_KEY/TENANT/DATABASE env 자동 사용
+    : new ChromaClient({ host: 'localhost', port: 8000 }) // 로컬 개발
 
-  // chromadb@3.5.0: cosine은 configuration.hnsw.space 로 지정 (구 metadata 문법 아님)
+  // ⚠ 인덱스 종류 분기: 로컬=HNSW, Cloud=SPANN — 거리 함수 지정 방식이 다름
+  // Cloud에 hnsw 설정을 주면 에러 없이 무시되고 기본 L2로 색인되는 조용한 함정 주의
   const collection = await client.getOrCreateCollection({
     name: COLLECTION_NAME,
-    embeddingFunction: null,
-    configuration: { hnsw: { space: 'cosine' } },
+    configuration: isCloud
+      ? { spann: { space: 'cosine' } }
+      : { hnsw:  { space: 'cosine' } },
   })
 
   const chunks = chunkPolicy(POLICY_PATH)

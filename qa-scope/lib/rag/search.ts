@@ -3,7 +3,7 @@
 // 색인(scripts/index-policy.ts)과 세트: collection 'policy_v2', cosine.
 // ⚠ taskType: 검색은 RETRIEVAL_QUERY (색인은 RETRIEVAL_DOCUMENT — 다름)
 
-import { ChromaClient } from 'chromadb'
+import { ChromaClient, CloudClient } from 'chromadb'
 import { embedText } from './embed'
 
 const COLLECTION_NAME = 'policy_v2'
@@ -21,7 +21,9 @@ export async function searchPolicy(
   query: string,
   topK: number = DEFAULT_TOP_K
 ): Promise<PolicySearchResult[]> {
-  const client = new ChromaClient({ host: 'localhost', port: 8000 })
+  const client = process.env.CHROMA_API_KEY
+    ? new CloudClient()                                   // 배포: env 3개(API_KEY/TENANT/DATABASE) 자동 사용
+    : new ChromaClient({ host: 'localhost', port: 8000 }) // 로컬 개발
   // getCollection: embeddingFunction은 optional이고 null 미허용 → 생략
   const collection = await client.getCollection({
     name: COLLECTION_NAME,
