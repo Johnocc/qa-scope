@@ -1,16 +1,121 @@
 @import "tailwindcss";
 
+/*
+ * 디자인 토큰 — 화면①~④가 공유하는 단일 소스.
+ * 베이스: 웜 뉴트럴(종이 느낌) + 상태색 3종(ok/warn/danger, 채도 낮춤) + 잉크(단색 강조,
+ * 별도 브랜드 컬러 없음 — 보험사 내부 QA 툴이라 화려한 액센트보다 신뢰감 우선).
+ * 라이트가 기본, 다크는 prefers-color-scheme을 따른다. 섹션 단위로 테마를 뒤집지 않는다.
+ */
 :root {
-  --color-risk: #dc2626;
-  --color-danger-bg: #fef2f2;
-  --color-warn: #d97706;
+  --surface: #f6f4ee;
+  --surface-card: #ffffff;
+  --surface-muted: #f1efe6;
+  --surface-hover: #ece8db;
+  --border: #e7e2d3;
+  --border-subtle: #efeade;
+  --ink: #26251f;
+  --ink-inverse: #fdfcf8;
+  --sub: #837e70;
+
+  --danger-bg: #f8e9e7;
+  --danger-text: #a8433c;
+  --danger-border: #edcfc9;
+
+  --warn-bg: #f5eedb;
+  --warn-text: #93711f;
+  --warn-border: #e8dab3;
+
+  --ok-bg: #eaf0dd;
+  --ok-text: #5f7239;
+  --ok-border: #d7e2c1;
+
+  --na-bg: #ece9df;
+  --na-text: #837e70;
+
+  --target-bg: #f5eedb;
+
+  --radius-card: 0.875rem;
+  --radius-control: 0.5rem;
+  --radius-pill: 9999px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1a1916;
+    --surface-card: #221f1b;
+    --surface-muted: #29261f;
+    --surface-hover: #322e25;
+    --border: #3a362c;
+    --border-subtle: #2c2921;
+    --ink: #f2efe6;
+    --ink-inverse: #201e19;
+    --sub: #a39c8a;
+
+    --danger-bg: #3a2420;
+    --danger-text: #f0a99b;
+    --danger-border: #5c342d;
+
+    --warn-bg: #3a3120;
+    --warn-text: #e4c477;
+    --warn-border: #5c4c2c;
+
+    --ok-bg: #232b1b;
+    --ok-text: #b7c98d;
+    --ok-border: #3a4a2a;
+
+    --na-bg: #2c2921;
+    --na-text: #a39c8a;
+
+    --target-bg: #4a3d1e;
+  }
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-ink: var(--ink);
+  --color-ink-inverse: var(--ink-inverse);
+  --color-sub: var(--sub);
+
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-text: var(--danger-text);
+  --color-danger-border: var(--danger-border);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-text: var(--warn-text);
+  --color-warn-border: var(--warn-border);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-text: var(--ok-text);
+  --color-ok-border: var(--ok-border);
+  --color-na-bg: var(--na-bg);
+  --color-na-text: var(--na-text);
+
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+  --radius-pill: var(--radius-pill);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
+    "Malgun Gothic", sans-serif;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
 }
 
 /* 화면② "항목 클릭 → 원문 점프": 앵커 이동 후 대상 발화를 강조 (JS 불필요) */
 :target {
-  background-color: #fef9c3 !important;
+  background-color: var(--target-bg) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

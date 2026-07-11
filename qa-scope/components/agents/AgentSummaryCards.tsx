@@ -11,9 +11,9 @@ export default function AgentSummaryCards({ summary }: { summary: AgentsSummaryR
   return (
     <div className="grid grid-cols-4 gap-4 px-6 py-4">
       {cards.map((c) => (
-        <div key={c.label} className="bg-white rounded border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">{c.label}</div>
-          <div className="text-2xl font-semibold mt-1">{c.value}</div>
+        <div key={c.label} className="rounded-card border border-border bg-surface-card p-4">
+          <div className="text-xs text-sub">{c.label}</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums">{c.value}</div>
         </div>
       ))}
     </div>

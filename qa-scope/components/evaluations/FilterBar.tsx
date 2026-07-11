@@ -10,42 +10,42 @@ export default function FilterBar({
   return (
     <form
       method="get"
-      className="flex flex-wrap items-end gap-3 px-6 py-4 bg-white border-b border-gray-200"
+      className="flex flex-wrap items-end gap-3 border-b border-border bg-surface-card px-6 py-4"
     >
       <div>
-        <label className="block text-xs text-gray-500 mb-1">시작일</label>
+        <label className="mb-1 block text-xs text-sub">시작일</label>
         <input
           type="date"
           name="date_from"
           defaultValue={searchParams.date_from ?? ''}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
+          className="rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
         />
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">종료일</label>
+        <label className="mb-1 block text-xs text-sub">종료일</label>
         <input
           type="date"
           name="date_to"
           defaultValue={searchParams.date_to ?? ''}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
+          className="rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
         />
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">상담사 ID</label>
+        <label className="mb-1 block text-xs text-sub">상담사 ID</label>
         <input
           type="text"
           name="agent_id"
           placeholder="AGT-001"
           defaultValue={searchParams.agent_id ?? ''}
-          className="border border-gray-300 rounded px-2 py-1 text-sm w-28"
+          className="w-28 rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink placeholder:text-sub/60 focus:outline-none focus:ring-2 focus:ring-ink/20"
         />
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">상담 유형</label>
+        <label className="mb-1 block text-xs text-sub">상담 유형</label>
         <select
           name="consult_type"
           defaultValue={searchParams.consult_type ?? ''}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
+          className="rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
         >
           <option value="">전체</option>
           <option value="신규·보장">신규·보장</option>
@@ -56,11 +56,11 @@ export default function FilterBar({
         </select>
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">상태</label>
+        <label className="mb-1 block text-xs text-sub">상태</label>
         <select
           name="status"
           defaultValue={searchParams.status ?? ''}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
+          className="rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
         >
           <option value="">전체</option>
           <option value="불완전판매 의심">불완전판매 의심</option>
@@ -69,11 +69,11 @@ export default function FilterBar({
         </select>
       </div>
       <div>
-        <label className="block text-xs text-gray-500 mb-1">정렬</label>
+        <label className="mb-1 block text-xs text-sub">정렬</label>
         <select
           name="sort"
           defaultValue={searchParams.sort ?? 'risk'}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
+          className="rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
         >
           <option value="risk">위험·저점 우선</option>
           <option value="date">상담일 최신순</option>
@@ -81,7 +81,7 @@ export default function FilterBar({
       </div>
       <button
         type="submit"
-        className="bg-gray-900 text-white text-sm px-4 py-1.5 rounded hover:bg-gray-800"
+        className="rounded-control bg-ink px-4 py-1.5 text-sm font-medium text-ink-inverse transition-opacity hover:opacity-90 active:opacity-80"
       >
         조회
       </button>

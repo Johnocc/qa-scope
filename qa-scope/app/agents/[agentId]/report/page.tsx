@@ -26,21 +26,23 @@ export default async function AgentReportPage({
 
   return (
     <div>
-      <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3 flex-wrap">
-        <Link href="/agents" className="text-sm text-gray-500 hover:underline">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-surface-card px-6 py-4">
+        <Link href="/agents" className="text-sm text-sub hover:text-ink hover:underline">
           ← 대시보드로
         </Link>
         <h2 className="text-base font-semibold">{report.meta.agent_name}</h2>
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-sub">
           {report.meta.period_from ?? ''} ~ {report.meta.period_to}
         </span>
-        <div className="ml-auto flex gap-2 items-center">
+        <div className="ml-auto flex items-center gap-2">
           {PERIODS.map((p) => (
             <Link
               key={p.value}
               href={`/agents/${agentId}/report?period=${p.value}`}
-              className={`text-sm px-3 py-1.5 rounded ${
-                period === p.value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              className={`rounded-control px-3 py-1.5 text-sm transition-colors ${
+                period === p.value
+                  ? 'bg-ink text-ink-inverse'
+                  : 'bg-surface-muted text-sub hover:bg-surface-hover hover:text-ink'
               }`}
             >
               {p.label}
@@ -52,44 +54,44 @@ export default async function AgentReportPage({
 
       <div id="agent-report-body">
         <div className="grid grid-cols-4 gap-4 px-6 py-4">
-          <div className="bg-white rounded border border-gray-200 p-4">
-            <div className="text-xs text-gray-500">채점 건수</div>
-            <div className="text-2xl font-semibold mt-1">{report.summary.evaluation_count}</div>
+          <div className="rounded-card border border-border bg-surface-card p-4">
+            <div className="text-xs text-sub">채점 건수</div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums">{report.summary.evaluation_count}</div>
           </div>
-          <div className="bg-white rounded border border-gray-200 p-4">
-            <div className="text-xs text-gray-500">평균 점수</div>
-            <div className="text-2xl font-semibold mt-1">
+          <div className="rounded-card border border-border bg-surface-card p-4">
+            <div className="text-xs text-sub">평균 점수</div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums">
               {report.summary.avg_score !== null ? report.summary.avg_score.toFixed(1) : '—'}
             </div>
           </div>
-          <div className="bg-white rounded border border-gray-200 p-4">
-            <div className="text-xs text-gray-500">위험 건</div>
-            <div className="text-2xl font-semibold mt-1">{report.summary.risk_count}</div>
+          <div className="rounded-card border border-border bg-surface-card p-4">
+            <div className="text-xs text-sub">위험 건</div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums text-danger-text">{report.summary.risk_count}</div>
           </div>
-          <div className="bg-white rounded border border-gray-200 p-4">
-            <div className="text-xs text-gray-500">약점 영역</div>
-            <div className="text-lg font-semibold mt-1">
+          <div className="rounded-card border border-border bg-surface-card p-4">
+            <div className="text-xs text-sub">약점 영역</div>
+            <div className="mt-1 text-lg font-semibold">
               {report.summary.weak_domain ? (
                 report.summary.weak_domain.label
               ) : (
-                <span className="text-gray-400 text-sm">없음</span>
+                <span className="text-sm text-sub">없음</span>
               )}
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 px-6">
-          <div className="bg-white rounded border border-gray-200 p-4">
+          <div className="rounded-card border border-border bg-surface-card p-4">
             <RadarChart domainRates={report.domain_rates} />
           </div>
-          <div className="bg-white rounded border border-gray-200">
-            <div className="px-4 py-2 text-sm font-medium border-b border-gray-100">개선 필요 항목</div>
+          <div className="rounded-card border border-border bg-surface-card">
+            <div className="border-b border-border-subtle px-4 py-2 text-sm font-medium">개선 필요 항목</div>
             <ImprovementItems items={report.improvement_items} />
           </div>
         </div>
 
         <div className="px-6 py-4">
-          <div className="bg-white rounded border border-gray-200 overflow-hidden">
+          <div className="overflow-hidden rounded-card border border-border bg-surface-card">
             <ItemDetailTable items={report.items} />
           </div>
         </div>

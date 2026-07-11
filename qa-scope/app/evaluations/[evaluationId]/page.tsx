@@ -23,19 +23,19 @@ export default async function EvaluationDetailPage({
 
   return (
     <div>
-      <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3 flex-wrap">
-        <Link href="/evaluations" className="text-sm text-gray-500 hover:underline">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-surface-card px-6 py-4">
+        <Link href="/evaluations" className="text-sm text-sub hover:text-ink hover:underline">
           ← 목록으로
         </Link>
         <h2 className="text-base font-semibold">{header.consultation_code}</h2>
-        <span className="text-sm text-gray-500">{header.agent_name || header.agent_id || '상담사 정보 없음'}</span>
-        <span className="text-sm text-gray-500">{header.consult_type ?? '—'}</span>
+        <span className="text-sm text-sub">{header.agent_name || header.agent_id || '상담사 정보 없음'}</span>
+        <span className="text-sm text-sub">{header.consult_type ?? '—'}</span>
         <RiskDot active={displayRisk} />
         <StatusBadge labels={displayLabels} />
         <span className="ml-auto text-lg font-semibold tabular-nums">{displayScore.toFixed(1)}점</span>
       </div>
       <div className="grid grid-cols-2">
-        <div className="border-r border-gray-200 max-h-[calc(100vh-9rem)] overflow-y-auto">
+        <div className="max-h-[calc(100vh-9rem)] overflow-y-auto border-r border-border">
           <DialogueList dialogues={dialogues} />
         </div>
         <div className="max-h-[calc(100vh-9rem)] overflow-y-auto">

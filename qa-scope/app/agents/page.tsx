@@ -21,13 +21,15 @@ export default async function AgentsPage({
 
   return (
     <div>
-      <div className="px-6 py-4 bg-white border-b border-gray-200 flex gap-2">
+      <div className="flex gap-2 border-b border-border bg-surface-card px-6 py-4">
         {PERIODS.map((p) => (
           <Link
             key={p.value}
             href={`/agents?period=${p.value}`}
-            className={`text-sm px-3 py-1.5 rounded ${
-              period === p.value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            className={`rounded-control px-3 py-1.5 text-sm transition-colors ${
+              period === p.value
+                ? 'bg-ink text-ink-inverse'
+                : 'bg-surface-muted text-sub hover:bg-surface-hover hover:text-ink'
             }`}
           >
             {p.label}
@@ -36,7 +38,7 @@ export default async function AgentsPage({
       </div>
       <AgentSummaryCards summary={data.summary} />
       <AgentTable agents={data.agents} period={period} />
-      <div className="px-6 py-4 text-xs text-gray-400">
+      <div className="px-6 py-4 text-xs text-sub">
         코칭(약점 진단) 도구입니다 — 순위·팀 비교는 표시하지 않습니다.
       </div>
     </div>

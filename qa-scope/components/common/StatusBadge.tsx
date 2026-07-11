@@ -3,9 +3,9 @@
  * (병기 여부·순서는 서버가 결정 — CLAUDE.md §8.3, 화면① 계약 §3.3).
  */
 const STYLE: Record<string, string> = {
-  '불완전판매 의심': 'bg-red-100 text-red-700 border border-red-300',
-  '저점수': 'bg-amber-100 text-amber-700 border border-amber-300',
-  '정상': 'bg-green-100 text-green-700 border border-green-300',
+  '불완전판매 의심': 'bg-danger-bg text-danger-text border border-danger-border',
+  '저점수': 'bg-warn-bg text-warn-text border border-warn-border',
+  '정상': 'bg-ok-bg text-ok-text border border-ok-border',
 };
 
 export default function StatusBadge({ labels }: { labels: string[] }) {
@@ -14,7 +14,7 @@ export default function StatusBadge({ labels }: { labels: string[] }) {
       {labels.map((label) => (
         <span
           key={label}
-          className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${STYLE[label] ?? 'bg-gray-100 text-gray-700 border border-gray-300'}`}
+          className={`whitespace-nowrap rounded-pill px-2.5 py-0.5 text-xs font-medium ${STYLE[label] ?? 'bg-na-bg text-na-text'}`}
         >
           {label}
         </span>

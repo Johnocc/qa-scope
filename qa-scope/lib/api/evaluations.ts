@@ -1,6 +1,4 @@
 import { fetchApi } from './client';
-import mockList from '../mocks/fixtures/evaluations-list.json';
-import mockDetail from '../mocks/fixtures/evaluation-detail.json';
 import type {
   EvaluationsListResponse,
   EvaluationsQueryParams,
@@ -9,7 +7,11 @@ import type {
   ReviewStatus,
 } from '../types/evaluation';
 
-/** 화면① 목록. 실 API가 계약대로 {meta,summary,items}를 반환 — 쿼리 그대로 전달 */
+/**
+ * 화면① 목록. 실 API가 계약대로 {meta,summary,items}를 반환 — 쿼리 그대로 전달.
+ * 실패를 여기서 삼키지 않는다: 그대로 던져서 라우트 세그먼트의 error.tsx가 잡아 화면에 드러낸다
+ * (조용한 목업 폴백 금지 — 실패는 티가 나야 한다).
+ */
 export async function getEvaluations(
   params: EvaluationsQueryParams = {},
 ): Promise<EvaluationsListResponse> {
@@ -23,24 +25,14 @@ export async function getEvaluations(
   qs.set('limit', String(params.limit ?? 50));
   qs.set('offset', String(params.offset ?? 0));
 
-  try {
-    return await fetchApi<EvaluationsListResponse>(`/api/evaluations?${qs}`);
-  } catch (err) {
-    console.warn('[getEvaluations] 실 API 실패 → 목업 데이터 사용:', err);
-    return mockList as EvaluationsListResponse;
-  }
+  return fetchApi<EvaluationsListResponse>(`/api/evaluations?${qs}`);
 }
 
-/** 화면② 상세. 실 API가 {header, evaluation, dialogues, review}를 그대로 반환 */
+/** 화면② 상세. 실 API가 {header, evaluation, dialogues, review}를 그대로 반환. 실패 시 전파(위 주석 참조). */
 export async function getEvaluationDetail(
   evaluationId: number,
 ): Promise<EvaluationDetailResponse> {
-  try {
-    return await fetchApi<EvaluationDetailResponse>(`/api/evaluations/${evaluationId}`);
-  } catch (err) {
-    console.warn('[getEvaluationDetail] 실 API 실패 → 목업 데이터 사용:', err);
-    return mockDetail as EvaluationDetailResponse;
-  }
+  return fetchApi<EvaluationDetailResponse>(`/api/evaluations/${evaluationId}`);
 }
 
 /**

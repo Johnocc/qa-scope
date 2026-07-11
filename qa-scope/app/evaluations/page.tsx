@@ -24,7 +24,7 @@ export default async function EvaluationsPage({
     <div>
       <FilterBar searchParams={sp} />
       <EvaluationTable items={data.items} />
-      <div className="px-6 py-4 text-sm text-gray-500 border-t border-gray-200">
+      <div className="border-t border-border px-6 py-4 text-sm text-sub">
         전량 {data.summary.total_count}건 채점 완료 · 위험 {data.summary.risk_count}건 · 표시 중{' '}
         {data.summary.filtered_count}건
       </div>

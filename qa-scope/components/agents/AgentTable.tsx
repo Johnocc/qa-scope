@@ -15,37 +15,37 @@ export default function AgentTable({ agents, period }: { agents: AgentSummaryRow
 
   return (
     <table className="w-full text-sm">
-      <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+      <thead className="bg-surface-muted text-xs uppercase tracking-wide text-sub">
         <tr>
-          <th className="text-left px-4 py-2 font-medium">상담사</th>
-          <th className="text-right px-4 py-2 font-medium">건수</th>
-          <th className="text-left px-4 py-2 font-medium">평균점수</th>
-          <th className="text-right px-4 py-2 font-medium">위험</th>
-          <th className="text-left px-4 py-2 font-medium">약점 항목</th>
+          <th className="px-4 py-2 text-left font-medium">상담사</th>
+          <th className="px-4 py-2 text-right font-medium">건수</th>
+          <th className="px-4 py-2 text-left font-medium">평균점수</th>
+          <th className="px-4 py-2 text-right font-medium">위험</th>
+          <th className="px-4 py-2 text-left font-medium">약점 항목</th>
         </tr>
       </thead>
       <tbody>
         {agents.map((a) => (
-          <tr key={a.agent_id} className="border-t border-gray-100">
-            <td className="px-4 py-2">
+          <tr key={a.agent_id} className="border-t border-border-subtle">
+            <td className="px-4 py-2.5">
               {a.agent_id === 'unknown' ? (
-                <span className="text-gray-400">{a.agent_name}</span>
+                <span className="text-sub">{a.agent_name}</span>
               ) : (
                 <Link
                   href={`/agents/${a.agent_id}/report?period=${period}`}
-                  className="text-blue-600 hover:underline"
+                  className="font-medium text-ink underline decoration-border underline-offset-4 hover:decoration-ink"
                 >
                   {a.agent_name}
                 </Link>
               )}
             </td>
-            <td className="px-4 py-2 text-right tabular-nums">{a.evaluation_count}</td>
-            <td className="px-4 py-2">
+            <td className="px-4 py-2.5 text-right tabular-nums">{a.evaluation_count}</td>
+            <td className="px-4 py-2.5">
               <ScoreBar rate={a.avg_score} />
             </td>
-            <td className="px-4 py-2 text-right tabular-nums">{a.risk_count}</td>
-            <td className="px-4 py-2">
-              {a.weak_domain ? a.weak_domain.label : <span className="text-gray-400">없음</span>}
+            <td className="px-4 py-2.5 text-right tabular-nums">{a.risk_count}</td>
+            <td className="px-4 py-2.5">
+              {a.weak_domain ? a.weak_domain.label : <span className="text-sub">없음</span>}
             </td>
           </tr>
         ))}

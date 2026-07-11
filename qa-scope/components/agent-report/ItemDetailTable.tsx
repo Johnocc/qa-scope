@@ -3,22 +3,22 @@ import ScoreBar from '../common/ScoreBar';
 import type { AgentReportItem } from '@/lib/types/agent';
 
 const STATUS_STYLE: Record<string, string> = {
-  양호: 'text-green-700',
-  보통: 'text-amber-700',
-  '개선 필요': 'text-red-700',
-  해당없음: 'text-gray-400',
+  양호: 'text-ok-text',
+  보통: 'text-warn-text',
+  '개선 필요': 'text-danger-text',
+  해당없음: 'text-sub',
 };
 
 export default function ItemDetailTable({ items }: { items: AgentReportItem[] }) {
   let currentDomain = '';
   return (
     <table className="w-full text-sm">
-      <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+      <thead className="bg-surface-muted text-xs uppercase tracking-wide text-sub">
         <tr>
-          <th className="text-left px-4 py-2 font-medium">항목</th>
-          <th className="text-left px-4 py-2 font-medium">달성률</th>
-          <th className="text-left px-4 py-2 font-medium">상태</th>
-          <th className="text-right px-4 py-2 font-medium">적용 건수</th>
+          <th className="px-4 py-2 text-left font-medium">항목</th>
+          <th className="px-4 py-2 text-left font-medium">달성률</th>
+          <th className="px-4 py-2 text-left font-medium">상태</th>
+          <th className="px-4 py-2 text-right font-medium">적용 건수</th>
         </tr>
       </thead>
       <tbody>
@@ -29,20 +29,20 @@ export default function ItemDetailTable({ items }: { items: AgentReportItem[] })
             <Fragment key={it.item_code}>
               {showDomainHeader && (
                 <tr>
-                  <td colSpan={4} className="px-4 pt-3 pb-1 text-xs font-semibold text-gray-400">
+                  <td colSpan={4} className="px-4 pt-3 pb-1 text-xs font-semibold text-sub">
                     {it.domain_code}영역
                   </td>
                 </tr>
               )}
-              <tr className="border-t border-gray-100">
-                <td className="px-4 py-2">
+              <tr className="border-t border-border-subtle">
+                <td className="px-4 py-2.5">
                   {it.item_code}. {it.item_name}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2.5">
                   <ScoreBar rate={it.rate} />
                 </td>
-                <td className={`px-4 py-2 ${STATUS_STYLE[it.status] ?? ''}`}>{it.status}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{it.applied_count}</td>
+                <td className={`px-4 py-2.5 ${STATUS_STYLE[it.status] ?? ''}`}>{it.status}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{it.applied_count}</td>
               </tr>
             </Fragment>
           );

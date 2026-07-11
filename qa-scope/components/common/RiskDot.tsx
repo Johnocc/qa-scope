@@ -7,7 +7,7 @@ export default function RiskDot({ active }: { active: boolean }) {
   if (!active) return null;
   return (
     <span
-      className="inline-block w-2.5 h-2.5 rounded-full bg-red-600 align-middle"
+      className="inline-block h-2.5 w-2.5 rounded-full bg-danger-text align-middle"
       title="위험 건"
       aria-label="위험 건"
     />

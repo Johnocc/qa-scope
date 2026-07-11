@@ -15,18 +15,18 @@ function formatOffset(sec: number | null): string {
  */
 export default function DialogueList({ dialogues }: { dialogues: DialogueTurn[] }) {
   if (dialogues.length === 0) {
-    return <div className="p-4 text-sm text-gray-400">상담 원문이 없습니다.</div>;
+    return <div className="p-4 text-sm text-sub">상담 원문이 없습니다.</div>;
   }
 
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="divide-y divide-border-subtle">
       {dialogues.map((d) => (
         <div
           id={`d-${d.dialogue_id}`}
           key={d.dialogue_id}
-          className={`px-4 py-2 text-sm scroll-mt-4 ${d.speaker === '고객' ? 'bg-gray-50' : ''}`}
+          className={`scroll-mt-4 px-4 py-2.5 text-sm ${d.speaker === '고객' ? 'bg-surface-muted' : ''}`}
         >
-          <div className="text-xs text-gray-400 mb-0.5">
+          <div className="mb-0.5 text-xs text-sub">
             [{formatOffset(d.offset_sec)}] {d.speaker}
           </div>
           <div>{d.content}</div>

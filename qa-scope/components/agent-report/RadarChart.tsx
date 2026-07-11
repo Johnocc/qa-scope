@@ -18,9 +18,10 @@ export default function RadarChart({ domainRates }: { domainRates: DomainRate[] 
       {
         label: '본인 획득률(%)',
         data: domainRates.map((d) => d.rate),
-        backgroundColor: 'rgba(37, 99, 235, 0.2)',
-        borderColor: 'rgb(37, 99, 235)',
-        pointBackgroundColor: 'rgb(37, 99, 235)',
+        backgroundColor: 'rgba(168, 67, 60, 0.15)',
+        borderColor: '#a8433c',
+        pointBackgroundColor: '#a8433c',
+        borderWidth: 2,
       },
     ],
   };
@@ -29,7 +30,16 @@ export default function RadarChart({ domainRates }: { domainRates: DomainRate[] 
     <Radar
       data={data}
       options={{
-        scales: { r: { min: 0, max: 100, ticks: { stepSize: 20 } } },
+        scales: {
+          r: {
+            min: 0,
+            max: 100,
+            ticks: { stepSize: 20, backdropColor: 'transparent' },
+            grid: { color: '#e7e2d3' },
+            angleLines: { color: '#e7e2d3' },
+            pointLabels: { color: '#26251f', font: { size: 12, weight: 600 } },
+          },
+        },
         plugins: { legend: { display: false } },
       }}
     />

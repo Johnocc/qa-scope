@@ -14,14 +14,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="bg-gray-50 text-gray-900">
-        <header className="bg-white">
-          <div className="px-6 py-4">
-            <h1 className="text-lg font-semibold">한빛생명 상담품질 자동채점 시스템</h1>
+      <body className="min-h-dvh bg-surface text-ink">
+        <header className="border-b border-border bg-surface-card">
+          <div className="mx-auto max-w-[1600px] px-6">
+            <h1 className="pt-3 text-base font-semibold tracking-tight">
+              한빛생명 상담품질 자동채점 시스템
+            </h1>
+            <TabNav />
           </div>
-          <TabNav />
         </header>
-        <main>{children}</main>
+        <main className="mx-auto max-w-[1600px]">{children}</main>
       </body>
     </html>
   );
