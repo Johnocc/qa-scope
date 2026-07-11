@@ -15,14 +15,21 @@
   "dependencies": {
     "@google/genai": "^2.10.0",
     "@google/generative-ai": "^0.24.1",
+    "@tailwindcss/postcss": "^4.3.2",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "chart.js": "^4.5.1",
     "chromadb": "^3.5.0",
     "dotenv": "^17.4.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "mysql2": "^3.22.5",
     "next": "^16.2.10",
+    "postcss": "^8.5.16",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
     "@types/node": "^20",
