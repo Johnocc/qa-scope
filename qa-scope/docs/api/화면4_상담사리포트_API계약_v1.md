@@ -16,11 +16,14 @@
   채점 결과만 저장돼 있다. 그래서 서버가 그 상담사의 채점 결과 여러 건을
   **합산·평균 내서(=집계)** 화면이 바로 그릴 수 있는 형태로 내려줘야 한다.
 - 이 문서는 그 "내려주는 데이터의 생김새"를 미리 못 박은 것이다.
-  화면에 보이는 요소(상단 카드 4개, 스파이더 차트, 개선 필요 항목,
+  화면에 보이는 요소(상단 카드, 스파이더 차트, 개선 필요 항목,
   18개 항목 표)와 응답 블록이 **1:1로 대응**하도록 설계했다.
 - 점수 계산·상태 판정("양호/보통/개선 필요")·약점 영역 선정은 **전부 서버가
   계산해서 내려준다.** 프론트는 받은 값을 그리기만 한다.
   (이 프로젝트의 원칙 "계산은 코드가, 화면은 표시만" — CLAUDE.md §7)
+- 이 리포트는 **인사고과(순위 줄세우기)가 아니라 코칭(약점 진단)을 위한
+  도구**다 (팀 결정 2026-07-08). 그래서 v1.2에서 팀 내 순위·팀 비교 수치를
+  걷어내고, 본인 점수·약점·개선 항목 중심으로 재구성했다 — 화면③도 같은 철학.
 
 ---
 
@@ -34,6 +37,8 @@
 | 4 | **임계값은 서버가 내려줌** | 60%·80% 컷을 프론트에 하드코딩하지 않는다. `meta.thresholds`로 전달 (원본: `app_config`) — "70점 컷 하드코딩 금지"와 같은 원칙 |
 | 5 | **상태·약점·개선목록은 서버 계산** | `items[].status`, `summary.weak_domain`, `improvement_items`를 프론트가 재계산하지 않는다 (화면③과 화면④가 어긋나는 것 방지) |
 | 6 | **소수 처리** | 비율·평균은 소수 1자리 반올림한 JSON number (예: `81.3`) |
+| 7 | **순위·팀 비교 제거 (v1.2)** | 화면③·④는 인사고과가 아니라 **코칭 도구** — 순위 줄세우기가 아니라 약점 진단 중심 (팀 결정 2026-07-08). `summary.rank`·`summary.agent_count`·`summary.team_avg_score`·`domain_rates[].team_rate`(팀 평균 점선) 제거. **스파이더 차트는 본인 값만** 그린다 |
+| 8 | **전체 대비 표기는 응답 유지·화면 보류 (v1.2)** | 상단 요약의 "전체 N건 중 M건" 표기(표본 표기)는 현재 데이터 규모에서 무의미해 화면에서 제외. 다만 `total_evaluation_count`·`total_risk_count` **응답 필드는 유지** — 재도입 여부 미정이라 데이터가 쌓이면 화면만 복원하면 됨 (서버 무수정) |
 
 ---
 
@@ -61,8 +66,8 @@ GET /api/agents/{agent_id}/report?period=30d
 | 응답 블록 | 화면④ 요소 |
 |---|---|
 | `meta` | 헤더(상담사명·기간)·임계값 |
-| `summary` | 상단 통계 카드 4개 + 약점 배지 |
-| `domain_rates` | 스파이더 차트 (5영역, 본인 vs 팀) |
+| `summary` | 상단 통계 카드 3개(건수·평균·위험) + 약점 배지 |
+| `domain_rates` | 스파이더 차트 (5영역, **본인만** — v1.2) |
 | `items` | 항목별 상세 표 (18개) |
 | `improvement_items` | 개선 필요 항목 박스 |
 
@@ -84,14 +89,14 @@ GET /api/agents/{agent_id}/report?period=30d
 | 필드 | 타입 | 카드 | 설명 |
 |---|---|---|---|
 | `evaluation_count` | number | 채점 건수 | 기간 내 이 상담사의 평가 건수 |
-| `total_evaluation_count` | number | 〃 부제 | 기간 내 전체(모든 상담사) 평가 건수 |
+| `total_evaluation_count` | number | (화면 표기 보류) | 기간 내 전체(모든 상담사) 평가 건수 — **v1.2: 응답에는 유지, 화면 표기는 보류** (결정 8) |
 | `avg_score` | number\|null | 평균 점수 | 환산총점(`final_score`)의 **건 단위 평균**. 0건이면 `null` |
-| `team_avg_score` | number\|null | 〃 부제 | 기간 내 전체 평가 건의 건 단위 평균 (화면①·③ 수치와 동일 기준) |
 | `risk_count` | number | 위험 건 | `risk_flagged = true` 건수 |
-| `total_risk_count` | number | 〃 부제 | 기간 내 전체 위험 건수 |
-| `rank` | number\|null | 팀 내 순위 | 상담사별 평균점수 내림차순 순위. 동점은 공동 순위(RANK). 0건이면 `null` |
-| `agent_count` | number | 〃 부제 | 기간 내 평가 1건 이상 보유 상담사 수 |
+| `total_risk_count` | number | (화면 표기 보류) | 기간 내 전체 위험 건수 — **v1.2: 응답에는 유지, 화면 표기는 보류** (결정 8) |
 | `weak_domain` | object\|null | 약점 배지 | 아래 참조. 적용 영역이 하나도 없으면 `null` |
+
+> **v1.2에서 제거된 필드:** `team_avg_score`·`rank`·`agent_count` (결정 7).
+> 서버는 이 키들을 더 이상 내려주지 않고, 프론트도 참조하지 않는다.
 
 `weak_domain` 객체:
 
@@ -105,18 +110,22 @@ GET /api/agents/{agent_id}/report?period=30d
   전 영역 우수 상담사에게 약점 배지를 달지 않는다 (화면③ 목업의 "약점 항목:
   없음" 행과 동일 의미. v1.1 보완).
 - `label`은 화면③ 약점 항목 컬럼·화면④ 배지에 공통 사용하는 표시 문구
-  (영역별 고정 매핑): A=`상담 도입` / B=`업무처리` / C=`공감·경청` /
+  (영역별 고정 매핑): A=`상담 도입` / B=`업무처리` / C=`태도·공감` /
   D=`불완전판매 고지` / E=`상담 마무리`
+  ※ C는 영역명(`domain_name`)과 동일 문구로 통일. **C 영역에 '경청' 키워드
+  사용 금지** — A영역(A3 경청 및 용건·니즈 파악)과 겹침 (팀 결정 2026-07-09, v1.3)
 
-### 3.3 `domain_rates` — 스파이더 차트 (항상 5개, A→E 순)
+### 3.3 `domain_rates` — 스파이더 차트 (항상 5개, A→E 순 — **본인 값만**)
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | `domain_code` | string | `"A"`~`"E"` |
 | `domain_name` | string | 예: `"상담 도입"` |
 | `rate` | number\|null | 본인 획득률(%) = Σ획득점수 ÷ Σ배점 × 100 (**N/A 제외**, §4). 적용 0건이면 `null` |
-| `team_rate` | number\|null | 같은 기간·같은 수식의 전체 상담사 획득률 |
 | `applied_count` | number | 이 영역 항목이 1개 이상 적용된 평가 건수 |
+
+> **v1.2에서 제거된 필드:** `team_rate` (팀 평균 점선 — 결정 7.
+> 팀 비교는 개인 리포트에 넣을 개념이 아님).
 
 > 차트에서 `rate: null`인 영역은 0으로 그리지 말 것 (0점과 "평가 상황 없음"은 다름).
 > Chart.js는 데이터에 `null`을 주면 해당 꼭짓점을 비워서 그린다.
@@ -175,7 +184,9 @@ GET /api/agents/{agent_id}/report?period=30d
 ```
 
 - 반올림: `round(x × 10) / 10` (소수 1자리) — 계산 마지막에 1회만.
-- 팀 수치(`team_avg_score`, `team_rate`)는 같은 기간·같은 수식을 전체 평가 건에 적용.
+- 전체 카운트(`total_evaluation_count`·`total_risk_count`)는 같은 기간 조건을 전체 평가 건에 적용.
+  (v1.2: 팀 평균·팀 획득률 계산은 제거 — 결정 7. 화면③의 전체·상담사별 수치는
+  이 §4 수식을 정본으로 공유한다 — 화면③ 계약 §1 결정 2)
 - 데이터 원천: `ai_evaluation_details`(level·max_score·earned_score) ×
   `ai_evaluation_master`(final_score·risk_flagged) × `consultation_master`(agent_id·consulted_at).
 
@@ -185,10 +196,8 @@ GET /api/agents/{agent_id}/report?period=30d
 
 | 상황 | 응답 |
 |---|---|
-| 기간 내 평가 0건 | `evaluation_count: 0`, `avg_score/rank/weak_domain: null`, `items` 18개 전부 `해당없음`, `domain_rates` 전부 `rate: null`, `improvement_items: []` |
+| 기간 내 평가 0건 | `evaluation_count: 0`, `avg_score/weak_domain: null`, `items` 18개 전부 `해당없음`, `domain_rates` 전부 `rate: null`, `improvement_items: []` |
 | 특정 항목 전 건 N/A (예: 신규판매 상담이 없어 D1~D5 전부) | 해당 항목만 `해당없음` 형태 (§3.4 예시) |
-| 상담사 1명뿐 | `rank: 1`, `agent_count: 1` (팀 평균 = 본인 평균) |
-| 동점 순위 | 공동 순위 (예: 1, 2, 2, 4) |
 | 알 수 없는 `period` 값 | `400` + `{ "error": "invalid period" }` |
 
 ---
@@ -205,7 +214,21 @@ GET /api/agents/{agent_id}/report?period=30d
       `app/api/agents/[agentId]/report/route.ts`. 시드 데이터로 통합 검증 완료)
 - [ ] 코칭 팁 정적 문구 18개 확정 (현재 D1·D2·D4만 등록 — 목업 초안 문구 채택.
       나머지는 `tip: null`)
-- [ ] 화면③(대시보드)용 API 계약은 별도 문서로 (이 문서는 화면④ 전용)
+- [x] 화면③(대시보드)용 API 계약은 별도 문서로 (2026-07-08 완료 —
+      `화면3_상담사대시보드_API계약_v1.md`. 화면①·②용도 같은 날 확정:
+      `화면1_채점결과목록_API계약_v1.md` / `화면2_채점상세_API계약_v1.md`)
+- [x] v1.2 필드 제거를 서버 구현에 반영 (2026-07-09 완료 —
+      `lib/db/agentReportRepo.ts`에서 팀 평균·팀 획득률·RANK 집계 삭제,
+      예시 응답 `schemas/agent-report.v1.example.json`은 2026-07-08 선반영.
+      `rank`·`agent_count`는 확정 삭제)
+- [ ] 팀 비교(`team_avg_score`·`team_rate`) **재도입 여지 있음** (2026-07-09 결정) —
+      추후 여유 시 "본인 vs 팀" 비교 기능으로 부활 가능. 재도입 시
+      계약 버전 업(필드 복원 명시) → git 이력에서 서버 구현 복원 → 스텁 갱신 순서로.
+      화면③ 대시보드의 전체 집계(같은 수식)도 참고 구현이 됨
+- [ ] 화면④ 목업(`docs/mocksup/화면4_상담사평가리포트_목업.html`)이 아직 v1 필드
+      (팀 점선·순위 카드·팀 평균 부제)를 그림 — FE 이식 시 v1.2 스텁 기준으로 갱신
+- [ ] 표본 표기("전체 N건 중 M건") 재도입 여부 결정 — 현재 보류
+      (데이터 규모가 커지면 화면만 복원, 응답 필드는 이미 있음)
 
 > 주: 예시 응답의 `agent_id`는 목업 서사(김상담)를 따른 가상값이다.
 > 실제 시드 명부는 `AGT-001 이지현 ~ AGT-006 김도연` + `unknown 미배정` —
@@ -217,3 +240,5 @@ GET /api/agents/{agent_id}/report?period=30d
 |---|---|---|
 | v1 | 2026-07-05 | 최초 확정 — 키 표기 snake_case, N/A '해당없음' 전달(항목 유지), 기간 기준 consulted_at |
 | v1.1 | 2026-07-05 | `weak_domain` 보완 — 최저 영역 달성률이 `item_rate_ok` 이상이면 `null`(약점 없음). 구현 중 발견: 전 영역 100% 상담사에게 동률 tie-break로 D영역 배지가 달리는 문제 방지 |
+| v1.2 | 2026-07-08 | **코칭 도구 철학 반영** (인사고과·순위 줄세우기 배제, 약점 진단 중심 — 화면③ 공통). ① 필드 제거: `summary.rank`·`summary.agent_count`·`summary.team_avg_score`·`domain_rates[].team_rate`(팀 평균 점선) — 스파이더 차트는 본인 값만. ② 표본 표기("전체 N건 중 M건")는 화면에서 제외하되 `total_evaluation_count`·`total_risk_count` 응답 필드는 유지(재도입 보류). ③ '코멘트 남기기' 버튼 제거(화면②와 기능 중복) — UI 전용 요소라 이 계약의 필드에는 영향 없음. 유지 확정: 요약 카드(건수·평균·위험)·약점 배지·개선 필요 항목·18항목 표·스파이더(본인)·PDF·기간 필터 |
+| v1.3 | 2026-07-09 | 약점 라벨 C 영역 통일 — `공감·경청` → `태도·공감` (영역명과 동일 문구). 이유: '경청'이 A영역(A3) 키워드와 겹침. 화면③ 계약 결정 4·화면② 영역명 주석·서버 상수 `WEAK_LABELS`(`lib/db/agentReportRepo.ts`)에 동시 반영 |

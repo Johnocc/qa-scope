@@ -20,6 +20,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { computeAggregates } from '../scoring/scoring';
 import { MAX_SCORES, ITEM_CODES, expectedScore, type ItemCode } from '../scoring/constants';
 import * as configRepo from './configRepo';
+import { preserveReviewOnConn } from './reviewRepo';
 
 export interface SaveOptions {
   evaluator?: 'AI_최종' | '사람_골든셋';
@@ -28,10 +29,39 @@ export interface SaveOptions {
   verifyAttempts?: number;
   /** "항목코드|근거인덱스" → 확정 dialogue_id */
   evidenceDialogueIds?: Map<string, number>;
+  /**
+   * 확정 검수(3-F review_status='확정') 존재 건의 재채점 정책 (검수 계약 결정 3).
+   * 'skip'(기본) = ConfirmedReviewSkipError를 던져 덮어쓰기 중단 —
+   *   배치는 채점 시작 전 reviewRepo.hasConfirmedReview()로 먼저 거르는 것이
+   *   원칙이고(LLM 비용 낭비 방지), 이 옵션은 최후 방어선이다.
+   * 'force' = 검수를 3-E '검수폐기'로 보존한 뒤 덮어쓴다 (명시적 강제 재채점).
+   */
+  onConfirmedReview?: 'skip' | 'force';
+}
+
+/** 확정 검수 존재로 재채점이 중단됨 (기본 skip 정책) — 호출부는 스킵으로 집계 */
+export class ConfirmedReviewSkipError extends Error {
+  constructor(
+    public consultationId: number,
+    public evaluationId: number,
+  ) {
+    super(
+      `확정 검수가 있어 재채점을 건너뜀 (consultation_id=${consultationId}, ` +
+        `evaluation_id=${evaluationId}) — 강제 재채점은 onConfirmedReview='force'`,
+    );
+    this.name = 'ConfirmedReviewSkipError';
+  }
 }
 
 export interface DashboardQuery {
+  /** 상담일(consulted_at) 범위 — 'YYYY-MM-DD'. to는 그 날 하루를 포함(< to+1일) */
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  agentId?: string | null;
+  consultType?: string | null;
   statusLabel?: string | null;
+  /** 'risk' = 위험·저점 우선(계약 결정 4, 기본) / 'date' = 상담일 최신순 */
+  sort?: 'risk' | 'date';
   limit?: number;
   offset?: number;
 }
@@ -53,6 +83,7 @@ export async function saveFinalEvaluation(
     rubricVersion = 'v1.5',
     verifyAttempts = 1,
     evidenceDialogueIds = new Map<string, number>(),
+    onConfirmedReview = 'skip',
   } = options;
 
   const items: any[] = payload['항목평가'];
@@ -77,6 +108,28 @@ export async function saveFinalEvaluation(
     );
     const prev = prevRows[0];
     if (prev) {
+      // 확정 검수 스킵 (검수 계약 결정 3 — 최후 방어선. 원칙은 배치의 채점 전 사전 조회)
+      if (onConfirmedReview !== 'force') {
+        const [confirmedRows] = await conn.query<RowDataPacket[]>(
+          `SELECT 1 FROM evaluation_reviews
+            WHERE evaluation_id = ? AND review_status = '확정'`,
+          [prev.evaluation_id],
+        );
+        if (confirmedRows.length > 0) {
+          throw new ConfirmedReviewSkipError(consultationId, prev.evaluation_id);
+        }
+      }
+
+      // 검수 보존 안전망 (검수_쓰기_API계약_v1.md 결정 3 부속 — 보존 없는 3-F 삭제 금지):
+      // 이 정본에 검수가 달려 있으면, DELETE의 CASCADE로 함께 지워지기 전에
+      // 3-E stage='검수폐기' 행으로 검수 전문을 보존한다 (검수 없으면 no-op).
+      await preserveReviewOnConn(
+        conn, consultationId, prev.evaluation_id,
+        onConfirmedReview === 'force'
+          ? '강제 재채점(onConfirmedReview=force)으로 폐기'
+          : '재채점 덮어쓰기로 폐기',
+      );
+
       // attempt_no는 상담 기준 이어 세기 — UNIQUE(consultation_id, attempt_no, stage) 충돌 방지
       const [seqRows] = await conn.query<RowDataPacket[]>(
         `SELECT COALESCE(MAX(attempt_no), 0) + 1 AS next_no
@@ -279,27 +332,98 @@ export async function getFullEvaluation(evaluationId: number): Promise<any | nul
   };
 }
 
-/**
- * 목록 화면(화면①)용 조회.
- * 정렬 정책: 불완전판매 의심 우선 → 저점수 → 정상, 그 안에서 점수 낮은 순.
- */
-export async function listForDashboard({
+/** 화면① 필터 → WHERE 절 조각 + 파라미터 (list·filtered_count가 동일 조각 공유 — 수치 불일치 방지) */
+function dashboardWhere({
+  dateFrom = null,
+  dateTo = null,
+  agentId = null,
+  consultType = null,
   statusLabel = null,
-  limit = 50,
-  offset = 0,
-}: DashboardQuery = {}): Promise<any[]> {
-  const where = statusLabel ? 'WHERE m.status_label = ?' : '';
-  const params: any[] = statusLabel ? [statusLabel, limit, offset] : [limit, offset];
+}: DashboardQuery): { sql: string; params: any[] } {
+  const conds: string[] = [`m.evaluator = 'AI_최종'`];
+  const params: any[] = [];
+  if (dateFrom) {
+    conds.push('c.consulted_at >= ?');
+    params.push(dateFrom);
+  }
+  if (dateTo) {
+    // 상담일 기준 to 포함 (consulted_at은 DATETIME이므로 다음날 0시 미만)
+    conds.push('c.consulted_at < DATE_ADD(?, INTERVAL 1 DAY)');
+    params.push(dateTo);
+  }
+  if (agentId) {
+    conds.push('c.agent_id = ?');
+    params.push(agentId);
+  }
+  if (consultType) {
+    conds.push('m.consult_type_ai = ?');
+    params.push(consultType);
+  }
+  if (statusLabel) {
+    conds.push('m.status_label = ?');
+    params.push(statusLabel);
+  }
+  return { sql: `WHERE ${conds.join(' AND ')}`, params };
+}
+
+/**
+ * 목록 화면(화면①)용 조회 — 정본 계약: docs/api/화면1_채점결과목록_API계약_v1.md
+ * 기본 정렬(sort=risk, 계약 결정 4): risk_flagged DESC → 상태라벨 순위
+ * (불완전판매 의심 → 저점수 → 정상) → final_score ASC. sort=date는 상담일 최신순.
+ * agents JOIN으로 agent_name 제공 (unknown 행은 명부에 '미배정'으로 시드됨).
+ */
+export async function listForDashboard(q: DashboardQuery = {}): Promise<any[]> {
+  const { sort = 'risk', limit = 50, offset = 0 } = q;
+  const where = dashboardWhere(q);
+  const orderBy =
+    sort === 'date'
+      ? 'c.consulted_at DESC, m.evaluation_id DESC'
+      : `m.risk_flagged DESC,
+         FIELD(m.status_label, '불완전판매 의심', '저점수', '정상'),
+         m.final_score ASC`;
   return query(
-    `SELECT m.evaluation_id, c.consultation_code, c.agent_id, c.consulted_at,
-            m.consult_type_ai, m.recommend_type, m.final_score,
+    `SELECT m.evaluation_id, c.consultation_code, c.agent_id,
+            COALESCE(a.agent_name, c.agent_id) AS agent_name,
+            c.consulted_at, m.consult_type_ai, m.recommend_type, m.final_score,
             m.risk_flagged, m.status_label, m.evaluated_at
        FROM ai_evaluation_master m
        JOIN consultation_master c ON c.consultation_id = m.consultation_id
-       ${where}
-      ORDER BY FIELD(m.status_label, '불완전판매 의심', '저점수', '정상'),
-               m.final_score ASC
+       LEFT JOIN agents a ON a.agent_id = c.agent_id
+       ${where.sql}
+      ORDER BY ${orderBy}
       LIMIT ? OFFSET ?`,
-    params,
+    [...where.params, limit, offset],
   );
+}
+
+/**
+ * 화면① summary 블록용 카운트 (계약 §3.2).
+ *  - total_count·risk_count: 필터 무관 전체 (evaluator='AI_최종')
+ *  - filtered_count: 필터 적용 후 총 건수 (limit/offset 무관 — 페이지 계산용)
+ */
+export async function countForDashboard(q: DashboardQuery = {}): Promise<{
+  total_count: number;
+  risk_count: number;
+  filtered_count: number;
+}> {
+  const where = dashboardWhere(q);
+  const [totals, filtered] = await Promise.all([
+    query<{ total_count: number; risk_count: number }>(
+      `SELECT COUNT(*) AS total_count, COALESCE(SUM(m.risk_flagged), 0) AS risk_count
+         FROM ai_evaluation_master m
+        WHERE m.evaluator = 'AI_최종'`,
+    ),
+    query<{ filtered_count: number }>(
+      `SELECT COUNT(*) AS filtered_count
+         FROM ai_evaluation_master m
+         JOIN consultation_master c ON c.consultation_id = m.consultation_id
+        ${where.sql}`,
+      where.params,
+    ),
+  ]);
+  return {
+    total_count: Number(totals[0].total_count),
+    risk_count: Number(totals[0].risk_count),
+    filtered_count: Number(filtered[0].filtered_count),
+  };
 }

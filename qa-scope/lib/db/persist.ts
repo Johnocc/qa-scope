@@ -37,10 +37,16 @@ export interface PersistResult {
   unmatchedQuotes: { 항목코드: string; 대화ID: string | number; reason: string }[]
 }
 
+export interface PersistOptions {
+  /** 확정 검수 존재 건 재채점 정책 — saveFinalEvaluation으로 전달 (검수 계약 결정 3) */
+  onConfirmedReview?: 'skip' | 'force'
+}
+
 export async function persistEvaluation(
   상담ID: string | number,
   utterances: Utterance[],
   final: EvalOutput,
+  options: PersistOptions = {},
 ): Promise<PersistResult> {
   const code = String(상담ID)
 
@@ -100,6 +106,7 @@ export async function persistEvaluation(
     aiModel: final.평가메타?.AI모델 ?? null,
     rubricVersion: final.평가메타?.루브릭버전 ?? 'v1.5',
     evidenceDialogueIds,
+    onConfirmedReview: options.onConfirmedReview,
   })
 
   return { consultationId, evaluationId, unmatchedQuotes }

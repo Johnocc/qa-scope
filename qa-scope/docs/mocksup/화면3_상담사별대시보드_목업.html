@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>화면③ 상담사별 대시보드 — 목업</title>
+<style>
+  :root{
+    --bg:#f6f4ee; --card:#ffffff; --border:#e7e2d3; --text:#2b2a26; --sub:#8a8578;
+    --danger-bg:#f8e9e7; --danger-text:#b5473f;
+    --ok-bg:#eef1e2; --ok-text:#7a8450;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--text);padding:28px;}
+  .shell{max-width:1080px;margin:0 auto;}
+  .mock-banner{background:#fff3cd;border:1px solid #f0e0a0;color:#7a5c00;font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:16px;line-height:1.7;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .tab{padding:9px 16px;border-radius:999px;font-size:14px;color:var(--sub);border:1px solid transparent;text-decoration:none;}
+  .tab.active{background:var(--text);color:#fff;font-weight:600;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;}
+  .stat-card .label{font-size:12px;color:var(--sub);margin-bottom:6px;}
+  .stat-card .value{font-size:26px;font-weight:700;}
+  .stat-card .sub{font-size:12px;color:var(--sub);margin-top:4px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--sub);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.02em;padding:10px;border-bottom:1px solid var(--border);}
+  td{padding:12px 10px;border-bottom:1px solid #f0ede3;vertical-align:middle;}
+  .agent-name{font-weight:700;color:var(--text);text-decoration:underline;cursor:pointer;}
+  .bar-wrap{width:140px;height:8px;background:#eee9db;border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px;}
+  .bar-fill{height:100%;border-radius:99px;background:#7a8450;}
+  .risk-count{font-weight:700;}
+  .risk-count.has-risk{color:var(--danger-text);}
+  .weak-none{color:var(--sub);}
+
+  .coach-note{
+    margin-top:16px;background:#f1efe6;border-radius:12px;padding:12px 16px;
+    font-size:13px;color:var(--text);
+  }
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .period-note{font-size:12px;color:var(--sub);}
+  select.filter{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text);}
+  .agent-name.disabled{text-decoration:none;color:var(--sub);cursor:default;font-weight:400;}
+
+  .footnote{font-size:11px;color:var(--sub);margin-top:16px;line-height:1.7;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;font-size:13px;padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="mock-banner">
+    ⚠ 목업 — 우현님이 주신 실제 예시 응답 <code>agents-summary.v1.example.json</code>을 그대로 사용합니다(가상 수치 아님).
+    화면①과 같은 시드 데이터(period=all 기준 전체 8건·위험 3건)로 수치가 정합합니다(계약 §4 정합 표).
+    <b>상단 요약 4개는 표에서 합산하지 않고 서버 <code>summary</code> 값을 그대로 표시</b>합니다.
+    이지현·정유나·한지원은 약점 없음("없음" 표시), 미배정 1건 포함, 동점(100.0)은 agent_id 오름차순으로 정렬됩니다(결정5) — 순위 숫자는 표시하지 않습니다.
+  </div>
+
+  <div class="tabs">
+    <a class="tab" href="화면1_채점결과목록_목업.html">채점 결과 목록</a>
+    <a class="tab" href="화면2_채점상세_목업.html">채점 상세</a>
+    <a class="tab active" href="#">상담사별 대시보드</a>
+  </div>
+
+  <div class="topbar">
+    <span class="period-note" id="periodNote"></span>
+    <select class="filter" id="periodSelect">
+      <option value="30d">최근 30일</option>
+      <option value="90d">최근 90일</option>
+      <option value="all">전체 기간</option>
+    </select>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="label">전체 평균</div><div class="value" id="statAvg">-</div><div class="sub">건 단위 평균(화면④ §4 수식과 동일)</div></div>
+    <div class="stat-card"><div class="label">채점 건수</div><div class="value" id="statCount">-</div><div class="sub">기간 내 전체</div></div>
+    <div class="stat-card"><div class="label">위험 건</div><div class="value" id="statRisk">-</div><div class="sub">기간 내 전체</div></div>
+    <div class="stat-card"><div class="label">상담사 수</div><div class="value" id="statAgents">-</div><div class="sub">평가 1건 이상 보유(미배정 포함)</div></div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>상담사</th><th>건수</th><th>평균점수</th><th>위험</th><th>약점 항목</th><th></th></tr></thead>
+      <tbody id="agentTable"></tbody>
+    </table>
+    <div class="coach-note">💡 이름을 클릭하면 개인 리포트(화면④)로 이동해 스파이더 차트·개선 필요 항목·코칭 근거를 볼 수 있습니다.</div>
+  </div>
+
+  <p class="footnote">
+    * "약점 항목"(<code>weak_domain</code>)은 화면④와 완전히 같은 규칙·값입니다(적용 건수가 있는 영역 중 달성률 최저 영역, 동률이면 배점 합이 큰 영역 우선: D30&gt;B26&gt;C18&gt;E14&gt;A12). 영역 표시명 매핑은 A=상담 도입/B=업무처리/C=태도·공감/D=불완전판매 고지/E=상담 마무리 (C에는 '경청' 키워드 사용 금지 — A3와 겹침).<br>
+    * 표 정렬은 평균점수 내림차순, 순위 숫자는 표시하지 않음(결정5) — 이름 클릭 시 같은 <code>period</code>로 화면④에 진입해 여기서 본 수치가 그대로 재현됩니다(결정7).<br>
+    * 데이터 출처: <code>agents-summary.v1.example.json</code>(우현님 제공 실제 예시).
+  </p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   화면3_상담사대시보드_API계약_v1.md 정본 반영: { meta, summary, agents } 3블록.
+   summary는 서버가 이미 계산해 내려준 값 — 프론트는 표에서 다시 합산(reduce)하지 않는다(결정 §3.2, 남은일).
+   weak_domain은 화면④ §3.2와 동일 객체·규칙(결정4). unknown(미배정) 행 포함(결정6).
+   실 연동 시: fetch(`/api/agents/summary?period=${period}`)로 교체.
+============================================================ */
+// agents-summary.v1.example.json 그대로(period=all 기준 — 화면①과 정합: 전체 8건·위험 3건).
+const META = {
+  period: "all",
+  period_from: "2026-06-22",
+  period_to: "2026-07-09",
+  rubric_version: "v1.5"
+};
+
+const SUMMARY = {
+  avg_score: 69.7,
+  evaluation_count: 8,
+  risk_count: 3,
+  agent_count: 7
+};
+
+// 이미 평균점수 내림차순(동점은 agent_id 오름차순 — 결정5)으로 정렬된 상태 그대로.
+const AGENTS = [
+  { agent_id: "AGT-001", agent_name: "이지현", evaluation_count: 1, avg_score: 100.0, risk_count: 0, weak_domain: null },
+  { agent_id: "AGT-004", agent_name: "정유나", evaluation_count: 1, avg_score: 100.0, risk_count: 0, weak_domain: null },
+  { agent_id: "AGT-005", agent_name: "한지원", evaluation_count: 1, avg_score: 93.8,  risk_count: 1, weak_domain: null },
+  { agent_id: "unknown", agent_name: "미배정", evaluation_count: 1, avg_score: 88.0,  risk_count: 0, weak_domain: { domain_code: "E", domain_name: "상담 마무리", label: "상담 마무리" } },
+  { agent_id: "AGT-006", agent_name: "김도연", evaluation_count: 1, avg_score: 65.9,  risk_count: 0, weak_domain: { domain_code: "D", domain_name: "보험특화(불완전판매 방지)", label: "불완전판매 고지" } },
+  { agent_id: "AGT-003", agent_name: "박소영", evaluation_count: 1, avg_score: 49.2,  risk_count: 0, weak_domain: { domain_code: "C", domain_name: "태도·공감", label: "태도·공감" } },
+  { agent_id: "AGT-002", agent_name: "이준호", evaluation_count: 2, avg_score: 30.2,  risk_count: 2, weak_domain: { domain_code: "D", domain_name: "보험특화(불완전판매 방지)", label: "불완전판매 고지" } },
+];
+// 화면④ 예시 데이터가 있는 상담사만 진짜 링크로 연결(코칭 우선순위 1위 — 약점 D영역·최저점)
+const HAS_REPORT_DEMO = new Set(["AGT-002"]);
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function render(){
+  document.getElementById("periodNote").textContent =
+    `${META.period_from} ~ ${META.period_to} · 루브릭 ${META.rubric_version}`;
+  document.getElementById("periodSelect").value = META.period;
+
+  // summary는 서버 직값 표시 — 표에서 다시 합산하지 않는다(계약 §3.2)
+  document.getElementById("statAvg").textContent = SUMMARY.avg_score.toFixed(1);
+  document.getElementById("statCount").textContent = SUMMARY.evaluation_count;
+  document.getElementById("statRisk").textContent = SUMMARY.risk_count;
+  document.getElementById("statAgents").textContent = SUMMARY.agent_count;
+
+  // agents는 이미 평균점수 내림차순으로 온다고 가정(결정5) — 프론트에서 재정렬 안 함
+  const tbody = document.getElementById("agentTable");
+  tbody.innerHTML = AGENTS.map(a => {
+    const isUnknown = a.agent_id === "unknown";
+    const nameCell = isUnknown
+      ? `<span class="agent-name disabled">${a.agent_name}</span>`
+      : `<span class="agent-name" data-id="${a.agent_id}" data-name="${a.agent_name}">${a.agent_name}</span>`;
+    return `
+    <tr>
+      <td>${nameCell}</td>
+      <td>${a.evaluation_count}건</td>
+      <td><span class="bar-wrap"><span class="bar-fill" style="width:${a.avg_score}%;"></span></span>${a.avg_score.toFixed(1)}</td>
+      <td class="risk-count ${a.risk_count>0?'has-risk':''}">${a.risk_count}</td>
+      <td>${a.weak_domain ? a.weak_domain.label : '<span class="weak-none">없음</span>'}</td>
+      <td></td>
+    </tr>`;
+  }).join("");
+
+  tbody.querySelectorAll(".agent-name:not(.disabled)").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const id = el.getAttribute("data-id");
+      if(HAS_REPORT_DEMO.has(id)){
+        // 결정7: period를 그대로 전달해서 ③에서 본 수치가 ④에서 재현되게
+        window.location.href = `화면4_상담사평가리포트_목업.html?period=${META.period}`;
+      } else {
+        toast(`목업: ${el.getAttribute("data-name")}님의 개인 리포트 예시 데이터는 아직 없습니다 (데모: 이준호만 지원)`);
+      }
+    });
+  });
+
+  document.getElementById("periodSelect").addEventListener("change", (e) => {
+    // TODO: 실 연동 시 fetch(`/api/agents/summary?period=${e.target.value}`) 재호출
+    toast(`목업이라 기간 변경은 재조회되지 않습니다 — 선택값: ${e.target.value}`);
+  });
+}
+
+try {
+  render();
+} catch (err) {
+  console.error("렌더링 오류:", err);
+  document.querySelector(".shell").insertAdjacentHTML(
+    "afterbegin",
+    `<div class="mock-banner" style="background:#f8e9e7;border-color:#edcfcb;color:#b5473f;">⚠ 렌더링 오류: ${err.message}</div>`
+  );
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>화면① 채점 결과 목록 — 목업</title>
+<style>
+  :root{
+    --bg:#f6f4ee;
+    --card:#ffffff;
+    --border:#e7e2d3;
+    --text:#2b2a26;
+    --sub:#8a8578;
+    --danger-bg:#f8e9e7;
+    --danger-text:#b5473f;
+    --warn-bg:#f5eedb;
+    --warn-text:#a9822f;
+    --ok-bg:#eef1e2;
+    --ok-text:#7a8450;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:28px;
+  }
+  .shell{max-width:1080px;margin:0 auto;}
+  .mock-banner{
+    background:#fff3cd;border:1px solid #f0e0a0;color:#7a5c00;
+    font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:16px;line-height:1.7;
+  }
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .tab{padding:9px 16px;border-radius:999px;font-size:14px;color:var(--sub);border:1px solid transparent;cursor:default;}
+  .tab.active{background:var(--text);color:#fff;font-weight:600;}
+
+  .filter-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  select.filter{
+    border:1px solid var(--border);background:#fff;border-radius:10px;
+    padding:8px 12px;font-size:13px;color:var(--text);
+  }
+  .sort-chip{
+    border:1px solid var(--border);background:#fff;border-radius:999px;
+    padding:8px 14px;font-size:13px;color:var(--text);cursor:pointer;
+  }
+  .sort-chip.active{border-color:var(--text);font-weight:700;background:#f1efe6;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{
+    text-align:left;color:var(--sub);font-weight:600;font-size:11px;
+    text-transform:uppercase;letter-spacing:.02em;
+    padding:10px;border-bottom:1px solid var(--border);
+  }
+  td{padding:12px 10px;border-bottom:1px solid #f0ede3;vertical-align:middle;}
+  tr.risk-row{background:var(--danger-bg);}
+  tr.risk-row:hover, tr:hover{background:#f1efe6;}
+  tr.risk-row:hover{background:#f3ddd9;}
+
+  .id-cell{font-weight:700;}
+  .risk-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:var(--danger-text);margin-right:6px;vertical-align:middle;
+  }
+  .status-pill{
+    display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;
+    border-radius:999px;white-space:nowrap;margin-right:4px;margin-bottom:2px;
+  }
+  .status-정상{background:var(--ok-bg);color:var(--ok-text);}
+  .status-저점수{background:var(--warn-bg);color:var(--warn-text);}
+  .status-불완전판매{background:var(--danger-bg);color:var(--danger-text);}
+
+  .score-cell{font-weight:700;}
+  .view-btn{
+    border:1px solid var(--border);background:#fff;color:var(--text);
+    padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;
+  }
+  .view-btn:hover{background:#f1efe6;}
+
+  .empty-row td{text-align:center;color:var(--sub);padding:28px;}
+
+  .footer-row{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:16px;font-size:13px;color:var(--sub);flex-wrap:wrap;gap:6px;
+  }
+  .footer-row b{color:var(--text);}
+  .footer-row .risk-total{color:var(--danger-text);font-weight:700;}
+
+  .footnote{font-size:11px;color:var(--sub);margin-top:16px;line-height:1.7;}
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--text);color:#fff;font-size:13px;padding:10px 18px;
+    border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="mock-banner">
+    ⚠ 목업 — 우현님이 주신 실제 예시 응답 <code>evaluations-list.v1.example.json</code>을 그대로 사용합니다(가상 수치 아님).
+    시드 더미 7건 + 미배정(unknown) 1건, 실제 상담사 명부(AGT-001~006)와 실명입니다.
+    엣지 케이스 포함: dummy_05(총점 93.8 ≥ 컷인데 플래그3만 있어 라벨은 "정상"이지만 위험 점 뜸), dummy_02(병기 건), dummy_08(미배정+유형 없음 → "—" 표시).
+  </div>
+
+  <div class="tabs">
+    <div class="tab active">채점 결과 목록</div>
+    <a class="tab" href="화면2_채점상세_목업.html" style="text-decoration:none;">채점 상세</a>
+    <a class="tab" href="화면3_상담사별대시보드_목업.html" style="text-decoration:none;">상담사별 대시보드</a>
+  </div>
+
+  <div class="card">
+    <div class="filter-row">
+      <select class="filter" id="filterDate"></select>
+      <select class="filter" id="filterAgent"></select>
+      <select class="filter" id="filterType"></select>
+      <select class="filter" id="filterStatus"></select>
+      <button class="sort-chip active" id="sortChip">↑ 위험·저점 우선</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>상담번호</th><th>상담사</th><th>유형</th><th>총점</th><th>상태</th><th></th></tr>
+      </thead>
+      <tbody id="listBody"></tbody>
+    </table>
+
+    <div class="footer-row">
+      <span>전량 <b id="totalCount">-</b>건 채점 완료 · 위험 <b class="risk-total" id="riskCount">-</b>건</span>
+      <span>표시 중 <b id="shownCount">-</b>건 (필터 적용)</span>
+    </div>
+  </div>
+
+  <p class="footnote">
+    * <code>status_labels</code> 판정(서버 계산, 계약 §3.3 정본): 저장된 <code>status_label</code>이 "불완전판매 의심"이면 그 라벨 포함, <code>final_score</code> &lt; 조회 시점 컷(현재 70, <code>app_config</code>)이면 "저점수" 포함, 둘 다 아니면 <code>["정상"]</code>. <code>risk_flagged</code>는 라벨과 별개 레이어라 "정상"이어도 빨간 점이 뜰 수 있음(§8.4) — dummy_05가 그 예시.<br>
+    * 데이터 출처: <code>evaluations-list.v1.example.json</code>(우현님 제공 실제 예시). 상담사는 실제 시드 명부(AGT-001 이지현 ~ AGT-006 김도연, unknown 미배정) 그대로입니다.<br>
+    * "보기" → <code>evaluation_id</code> 기준으로 화면②로 이동. 화면②에 실제 상세 데이터가 있는 건 evaluation_id 105(dummy_05, 한지원)뿐 — 나머지는 준비중 토스트.
+  </p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   데이터 — evaluations-list.v1.example.json 그대로. 시드 더미 7건(consultation_code=dummy_01~07)
+   + 미배정(unknown) 1건(dummy_08).
+   실 연동 시: 이 배열 대신
+     const EVALUATIONS = await fetch('/api/evaluations?...').then(r=>r.json()).then(d=>d.items);
+   로 교체. 필드명은 화면1_채점결과목록_API계약_v1.md 정본 그대로:
+   evaluation_id(숫자 PK) / consultation_code(표시용) / consult_type / status_label(단일) /
+   status_labels(병기 배열, 서버 계산) / risk_flagged.
+
+   원칙(계약 §0·결정3): 상태라벨·위험표시여부는 서버가 계산해 내려준 값을 그대로 쓴다.
+   프론트는 재계산하지 않는다(70점 컷 등 하드코딩 금지, CLAUDE.md §13).
+============================================================ */
+// evaluations-list.v1.example.json 그대로(정렬 결과 포함 — sort=risk 적용된 순서). agent_id도 실제 명부 값.
+const EVALUATIONS = [
+  { evaluation_id: 102, consultation_code: "dummy_02", agent_id: "AGT-002", agent_name: "이준호", consulted_at: "2026-06-23 14:15:00", consult_type: "신규·보장",  final_score: 32.4,  risk_flagged: true,  status_label: "불완전판매 의심", status_labels: ["불완전판매 의심", "저점수"] },
+  { evaluation_id: 106, consultation_code: "dummy_06", agent_id: "AGT-002", agent_name: "이준호", consulted_at: "2026-06-29 13:50:00", consult_type: "단순문의",  final_score: 27.9,  risk_flagged: true,  status_label: "저점수", status_labels: ["저점수"] },
+  // dummy_05: §10.4 필수 확인 케이스 — 총점 93.8(컷 이상)인데 플래그3(오정보)만 있어 라벨은 "정상"이지만 risk_flagged=true(빨간 점 필수, 초록불에 묻히면 안 됨). 화면②에 실제 상세 연결됨.
+  { evaluation_id: 105, consultation_code: "dummy_05", agent_id: "AGT-005", agent_name: "한지원", consulted_at: "2026-06-26 10:20:00", consult_type: "계약변경",  final_score: 93.8,  risk_flagged: true,  status_label: "정상", status_labels: ["정상"], hasDetail: true },
+  { evaluation_id: 103, consultation_code: "dummy_03", agent_id: "AGT-003", agent_name: "박소영", consulted_at: "2026-06-24 11:05:00", consult_type: "해지·환급",  final_score: 49.2,  risk_flagged: false, status_label: "저점수", status_labels: ["저점수"] },
+  { evaluation_id: 107, consultation_code: "dummy_07", agent_id: "AGT-006", agent_name: "김도연", consulted_at: "2026-06-30 15:10:00", consult_type: "신규·보장",  final_score: 65.9,  risk_flagged: false, status_label: "저점수", status_labels: ["저점수"] },
+  // dummy_08: 미배정(unknown) 건 — consult_type null → 화면은 "—" 표시.
+  { evaluation_id: 108, consultation_code: "dummy_08", agent_id: "unknown", agent_name: "미배정", consulted_at: "2026-07-01 09:05:00", consult_type: null, final_score: 88.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"] },
+  { evaluation_id: 101, consultation_code: "dummy_01", agent_id: "AGT-001", agent_name: "이지현", consulted_at: "2026-06-22 09:40:00", consult_type: "신규·보장",  final_score: 100.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"] },
+  { evaluation_id: 104, consultation_code: "dummy_04", agent_id: "AGT-004", agent_name: "정유나", consulted_at: "2026-06-25 16:30:00", consult_type: "보험금청구", final_score: 100.0, risk_flagged: false, status_label: "정상", status_labels: ["정상"] },
+];
+
+const STATUS_RANK = { "불완전판매 의심": 0, "저점수": 1, "정상": 2 }; // 계약 결정4 — 정렬용
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function goDetail(evaluationId, hasDetail){
+  if(hasDetail){
+    window.location.href = `화면2_채점상세_목업.html?evaluation_id=${evaluationId}`;
+  } else {
+    toast(`evaluation_id ${evaluationId}: 화면②용 상세(근거 배열) 데이터가 아직 없어 준비 중입니다. 예시로 evaluation_id 105(dummy_05, 한지원) 건을 확인해보세요.`);
+  }
+}
+
+function statusClassName(label){
+  if(label === "불완전판매 의심") return "status-불완전판매";
+  if(label === "저점수") return "status-저점수";
+  return "status-정상";
+}
+
+const state = { date: "all", agent: "all", type: "all", status: "all", sortLowFirst: true };
+
+function dateOnly(consultedAt){ return consultedAt.slice(0, 10); }
+
+function populateFilters(){
+  const dates = [...new Set(EVALUATIONS.map(e=>dateOnly(e.consulted_at)))].sort();
+  const agents = [...new Set(EVALUATIONS.map(e=>e.agent_name))].sort();
+  const types = [...new Set(EVALUATIONS.map(e=>e.consult_type).filter(t=>t!==null))];
+
+  const dateSel = document.getElementById("filterDate");
+  dateSel.innerHTML = `<option value="all">날짜 전체</option>` +
+    dates.map(d=>`<option value="${d}">${d}</option>`).join("");
+
+  const agentSel = document.getElementById("filterAgent");
+  agentSel.innerHTML = `<option value="all">상담사 전체</option>` +
+    agents.map(a=>`<option value="${a}">${a}</option>`).join("");
+
+  const typeSel = document.getElementById("filterType");
+  typeSel.innerHTML = `<option value="all">유형 전체</option>` +
+    types.map(t=>`<option value="${t}">${t}</option>`).join("");
+
+  const statusSel = document.getElementById("filterStatus");
+  statusSel.innerHTML = `<option value="all">상태(저장값) 전체</option>` +
+    `<option value="불완전판매 의심">불완전판매 의심</option>` +
+    `<option value="저점수">저점수</option>` +
+    `<option value="정상">정상</option>`;
+
+  dateSel.addEventListener("change", e=>{ state.date = e.target.value; render(); });
+  agentSel.addEventListener("change", e=>{ state.agent = e.target.value; render(); });
+  typeSel.addEventListener("change", e=>{ state.type = e.target.value; render(); });
+  statusSel.addEventListener("change", e=>{ state.status = e.target.value; render(); });
+  document.getElementById("sortChip").addEventListener("click", ()=>{
+    state.sortLowFirst = !state.sortLowFirst;
+    document.getElementById("sortChip").classList.toggle("active", state.sortLowFirst);
+    render();
+  });
+}
+
+function render(){
+  let rows = EVALUATIONS.filter(e =>
+    (state.date === "all" || dateOnly(e.consulted_at) === state.date) &&
+    (state.agent === "all" || e.agent_name === state.agent) &&
+    (state.type === "all" || e.consult_type === state.type) &&
+    (state.status === "all" || e.status_label === state.status)
+  );
+
+  if(state.sortLowFirst){
+    // 계약 결정4: risk_flagged DESC → 상태라벨 순위(불완전판매 의심→저점수→정상) → final_score ASC
+    rows = [...rows].sort((a,b)=>{
+      if(a.risk_flagged !== b.risk_flagged) return (b.risk_flagged?1:0) - (a.risk_flagged?1:0);
+      const rankDiff = STATUS_RANK[a.status_label] - STATUS_RANK[b.status_label];
+      if(rankDiff !== 0) return rankDiff;
+      return a.final_score - b.final_score;
+    });
+  } else {
+    // sort=date: 상담일 최신순
+    rows = [...rows].sort((a,b)=> b.consulted_at.localeCompare(a.consulted_at));
+  }
+
+  const tbody = document.getElementById("listBody");
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">조건에 맞는 상담이 없습니다.</td></tr>`;
+  } else {
+    tbody.innerHTML = rows.map(ev=>{
+      const pills = ev.status_labels.map(l=>`<span class="status-pill ${statusClassName(l)}">${l}</span>`).join("");
+      return `
+        <tr class="${ev.risk_flagged ? 'risk-row' : ''}">
+          <td class="id-cell">${ev.consultation_code}</td>
+          <td>${ev.agent_name}</td>
+          <td>${ev.consult_type ?? '—'}</td>
+          <td class="score-cell">${ev.final_score.toFixed(1)}</td>
+          <td>${ev.risk_flagged ? '<span class="risk-dot" title="위험플래그 있음"></span>' : ''}${pills}</td>
+          <td><button class="view-btn" onclick="goDetail(${ev.evaluation_id}, ${!!ev.hasDetail})">보기 ›</button></td>
+        </tr>`;
+    }).join("");
+  }
+
+  // summary(total_count/risk_count)는 필터 무관 전체 값 — 계약 §3.2
+  document.getElementById("totalCount").textContent = EVALUATIONS.length;
+  document.getElementById("riskCount").textContent = EVALUATIONS.filter(e=>e.risk_flagged).length;
+  document.getElementById("shownCount").textContent = rows.length;
+}
+
+try {
+  populateFilters();
+  render();
+} catch (err) {
+  console.error("렌더링 오류:", err);
+  document.querySelector(".shell").insertAdjacentHTML(
+    "afterbegin",
+    `<div class="mock-banner" style="background:#f8e9e7;border-color:#edcfcb;color:#b5473f;">⚠ 렌더링 오류: ${err.message}</div>`
+  );
+}
+</script>
+</body>
+</html>

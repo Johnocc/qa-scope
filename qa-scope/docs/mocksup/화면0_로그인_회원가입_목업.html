@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>화면⓪ 로그인 — 목업</title>
+<style>
+  :root{
+    --bg:#f6f4ee;
+    --card:#ffffff;
+    --border:#e7e2d3;
+    --text:#2b2a26;
+    --sub:#8a8578;
+    --danger-text:#b5473f;
+    --ok-text:#7a8450;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:40px 16px;
+  }
+  .mock-banner{
+    background:#fff3cd;border:1px solid #f0e0a0;color:#7a5c00;
+    font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:28px;
+    max-width:640px;line-height:1.7;
+  }
+  .auth-card{
+    width:100%;max-width:380px;background:var(--card);
+    border:1px solid var(--border);border-radius:18px;
+    padding:32px 28px;
+  }
+  .brand{text-align:center;margin-bottom:24px;}
+  .brand .logo{font-size:15px;font-weight:700;color:var(--sub);letter-spacing:.02em;}
+  .brand h1{font-size:19px;margin:6px 0 0;}
+
+  form{display:flex;flex-direction:column;gap:14px;}
+  label{font-size:12px;color:var(--sub);font-weight:600;margin-bottom:4px;display:block;}
+  input{
+    width:100%;border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;font-size:14px;color:var(--text);background:#fdfcf9;
+  }
+  input:focus{outline:2px solid #2b2a2622;border-color:#c9c4b4;}
+  .field-row{display:flex;flex-direction:column;}
+
+  .btn-primary{
+    margin-top:6px;background:var(--text);color:#fff;border:none;
+    padding:12px 0;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;
+  }
+  .btn-primary:hover{opacity:.92;}
+
+  .minor-row{display:flex;justify-content:flex-end;font-size:12px;color:var(--sub);margin-top:2px;}
+  .minor-row a{color:var(--sub);text-decoration:underline;cursor:pointer;}
+
+  .divider{border-top:1px solid var(--border);margin:20px 0 14px;}
+
+  .role-note{
+    margin-top:16px;font-size:11px;color:var(--sub);background:#f1efe6;
+    border-radius:8px;padding:8px 10px;line-height:1.6;
+  }
+
+  .flow-note{
+    max-width:380px;margin-top:18px;font-size:11px;color:var(--sub);line-height:1.7;text-align:center;
+  }
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--text);color:#fff;font-size:13px;padding:10px 18px;
+    border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+  <div class="mock-banner">
+    ⚠ 목업 — 조원 확정 피드백 반영: 회원가입 폼 제거했습니다. 사내 툴이라 계정은 관리자가 발급하는 구조가 맞고, 셀프 가입은 부적합하다는 결론입니다.
+    실제 인증 로직은 아직 없고 화면 전환만 됩니다(백엔드 몫). <b>이 화면은 지금 상태로 두고 추가 수정하지 않기로 했습니다.</b>
+  </div>
+
+  <div class="auth-card">
+    <div class="brand">
+      <div class="logo">한빛생명 · QA Scope</div>
+      <h1>로그인</h1>
+    </div>
+
+    <form id="loginForm" onsubmit="return handleSubmit(event);">
+      <div class="field-row">
+        <label for="loginEmail">이메일</label>
+        <input id="loginEmail" type="email" placeholder="name@hanbit-life.example" required>
+      </div>
+      <div class="field-row">
+        <label for="loginPw">비밀번호</label>
+        <input id="loginPw" type="password" placeholder="••••••••" required>
+      </div>
+      <div class="minor-row">
+        <a onclick="toast('목업: 비밀번호 재설정 화면은 범위 밖')">비밀번호를 잊으셨나요?</a>
+      </div>
+      <button type="submit" class="btn-primary">로그인</button>
+    </form>
+
+    <div class="divider"></div>
+    <div class="role-note">
+      계정은 관리자가 발급합니다(셀프 회원가입 없음). 역할은 현재 "평가담당자" 단일 역할만 가정합니다.
+    </div>
+  </div>
+
+  <div class="flow-note">
+    로그인 성공 → <b>화면① 채점 결과 목록</b>으로 이동합니다.
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function handleSubmit(e){
+  e.preventDefault();
+  // 실제 인증은 없지만, 화면①이 이미 있으니 실제로 이동시켜 흐름을 확인할 수 있게 함.
+  toast('목업: 실제 인증 없이 화면①로 이동합니다');
+  setTimeout(()=>{ window.location.href = "화면1_채점결과목록_목업.html"; }, 600);
+  return false;
+}
+</script>
+</body>
+</html>

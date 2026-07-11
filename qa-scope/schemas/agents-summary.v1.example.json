@@ -1,0 +1,74 @@
+{
+  "_comment": "화면③ 상담사별 대시보드 API 예시 응답 (계약 v1.1 기준 — docs/api/화면3_상담사대시보드_API계약_v1.md). period=all 기준으로 화면① 스텁(evaluations-list.v1.example.json)과 수치 정합: 전체 8건·위험 3건 (계약 §4 정합 표). 엣지 케이스 대표 건 포함: unknown(미배정) 행 포함(결정 6), 전 영역 우수 상담사의 weak_domain null(AGT-001·AGT-004·AGT-005 — '없음' 표시), 동점(100.0) 시 agent_id 오름차순 정렬(결정 5). 순위 숫자는 계산·표시하지 않음. 프론트 개발 시 스텁으로 사용 가능.",
+  "meta": {
+    "period": "all",
+    "period_from": "2026-06-22",
+    "period_to": "2026-07-09",
+    "generated_at": "2026-07-09T10:30:00+09:00",
+    "rubric_version": "v1.5"
+  },
+  "summary": {
+    "avg_score": 69.7,
+    "evaluation_count": 8,
+    "risk_count": 3,
+    "agent_count": 7
+  },
+  "agents": [
+    {
+      "agent_id": "AGT-001",
+      "agent_name": "이지현",
+      "evaluation_count": 1,
+      "avg_score": 100.0,
+      "risk_count": 0,
+      "weak_domain": null
+    },
+    {
+      "agent_id": "AGT-004",
+      "agent_name": "정유나",
+      "evaluation_count": 1,
+      "avg_score": 100.0,
+      "risk_count": 0,
+      "weak_domain": null
+    },
+    {
+      "agent_id": "AGT-005",
+      "agent_name": "한지원",
+      "evaluation_count": 1,
+      "avg_score": 93.8,
+      "risk_count": 1,
+      "weak_domain": null
+    },
+    {
+      "agent_id": "unknown",
+      "agent_name": "미배정",
+      "evaluation_count": 1,
+      "avg_score": 88.0,
+      "risk_count": 0,
+      "weak_domain": { "domain_code": "E", "domain_name": "상담 마무리", "label": "상담 마무리" }
+    },
+    {
+      "agent_id": "AGT-006",
+      "agent_name": "김도연",
+      "evaluation_count": 1,
+      "avg_score": 65.9,
+      "risk_count": 0,
+      "weak_domain": { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "label": "불완전판매 고지" }
+    },
+    {
+      "agent_id": "AGT-003",
+      "agent_name": "박소영",
+      "evaluation_count": 1,
+      "avg_score": 49.2,
+      "risk_count": 0,
+      "weak_domain": { "domain_code": "C", "domain_name": "태도·공감", "label": "태도·공감" }
+    },
+    {
+      "agent_id": "AGT-002",
+      "agent_name": "이준호",
+      "evaluation_count": 2,
+      "avg_score": 30.2,
+      "risk_count": 2,
+      "weak_domain": { "domain_code": "D", "domain_name": "보험특화(불완전판매 방지)", "label": "불완전판매 고지" }
+    }
+  ]
+}

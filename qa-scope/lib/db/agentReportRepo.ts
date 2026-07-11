@@ -61,11 +61,12 @@ const DOMAIN_NAMES: Record<DomainCode, string> = {
   E: '상담 마무리',
 }
 
-/** 약점 배지 표시 문구 — 화면③ 약점항목 컬럼과 공통 (계약 §3.2 고정 매핑) */
+/** 약점 배지 표시 문구 — 화면③ 약점항목 컬럼과 공통 (계약 §3.2 고정 매핑)
+ *  C는 영역명과 동일한 '태도·공감' — '경청'은 A영역(A3) 키워드와 겹쳐 금지 (팀 결정 2026-07-09) */
 const WEAK_LABELS: Record<DomainCode, string> = {
   A: '상담 도입',
   B: '업무처리',
-  C: '공감·경청',
+  C: '태도·공감',
   D: '불완전판매 고지',
   E: '상담 마무리',
 }
@@ -76,6 +77,35 @@ const DOMAIN_MAX: Record<DomainCode, number> = (() => {
   for (const code of ITEM_CODES) acc[code[0] as DomainCode] += MAX_SCORES[code]
   return acc
 })()
+
+export interface WeakDomain {
+  domain_code: DomainCode
+  domain_name: string
+  label: string
+}
+
+/**
+ * 약점 영역 선정 (계약 ④ §3.2 = 계약 ③ 결정 4 — 단일 구현, 별도 재구현 금지).
+ * 규칙: 적용(rate≠null) 영역 중 달성률 최저 → 동률이면 배점 합 큰 영역
+ * (D30 > B26 > C18 > E14 > A12) → 최저 영역도 okCut 이상이면 약점 없음(null).
+ * 화면③(전원 표)과 화면④(개인 리포트)가 이 함수를 공유해 ③↔④ 불일치를 막는다.
+ */
+export function selectWeakDomain(
+  domainRates: { domain_code: DomainCode; rate: number | null }[],
+  okCut: number,
+): WeakDomain | null {
+  const applied = domainRates.filter((d) => d.rate !== null)
+  if (applied.length === 0) return null
+  const worst = [...applied].sort(
+    (a, b) => a.rate! - b.rate! || DOMAIN_MAX[b.domain_code] - DOMAIN_MAX[a.domain_code],
+  )[0]
+  if (worst.rate! >= okCut) return null
+  return {
+    domain_code: worst.domain_code,
+    domain_name: DOMAIN_NAMES[worst.domain_code],
+    label: WEAK_LABELS[worst.domain_code],
+  }
+}
 
 /**
  * 개선 필요 항목 코칭 팁 (계약 §3.5 — 항목코드별 정적 문구).
@@ -102,22 +132,20 @@ export interface AgentReport {
     rubric_version: string
     thresholds: { item_rate_warn: number; item_rate_ok: number }
   }
+  // v1.2(2026-07-08): 순위·팀 비교 필드(rank·agent_count·team_avg_score·team_rate) 제거 —
+  // 코칭 도구 철학(줄세우기 배제). 재도입 여지는 계약 §6 참조 (git 이력에서 복원).
   summary: {
     evaluation_count: number
     total_evaluation_count: number
     avg_score: number | null
-    team_avg_score: number | null
     risk_count: number
     total_risk_count: number
-    rank: number | null
-    agent_count: number
     weak_domain: { domain_code: DomainCode; domain_name: string; label: string } | null
   }
   domain_rates: {
     domain_code: DomainCode
     domain_name: string
     rate: number | null
-    team_rate: number | null
     applied_count: number
   }[]
   items: {
@@ -174,13 +202,13 @@ function periodClause(fromDate: string | null): { sql: string; params: any[] } {
 // 집계 쿼리 3종
 // ---------------------------------------------------------------------
 
-/** ① 요약 — 본인/전체 건수·평균·위험 건수를 조건부 집계로 한 번에 */
+/** ① 요약 — 본인/전체 건수·평균·위험 건수를 조건부 집계로 한 번에.
+ *  전체 카운트(total_cnt·total_risk)는 표본 표기용으로 응답에 유지 (계약 v1.2 결정 8) */
 async function fetchSummaryStats(agentId: string, fromDate: string | null) {
   const p = periodClause(fromDate)
   const rows = await query<{
     total_cnt: number
     agent_cnt: number
-    team_avg: number | null
     agent_avg: number | null
     total_risk: number
     agent_risk: number
@@ -188,7 +216,6 @@ async function fetchSummaryStats(agentId: string, fromDate: string | null) {
     `SELECT
        COUNT(*)                                                    AS total_cnt,
        COALESCE(SUM(c.agent_id = ?), 0)                            AS agent_cnt,
-       AVG(m.final_score)                                          AS team_avg,
        AVG(CASE WHEN c.agent_id = ? THEN m.final_score END)        AS agent_avg,
        COALESCE(SUM(m.risk_flagged), 0)                            AS total_risk,
        COALESCE(SUM(CASE WHEN c.agent_id = ? THEN m.risk_flagged END), 0) AS agent_risk
@@ -200,20 +227,7 @@ async function fetchSummaryStats(agentId: string, fromDate: string | null) {
   return rows[0]
 }
 
-/** ② 순위 — 기간 내 평가 보유 상담사별 평균 (미배정 unknown은 순위·분모 제외) */
-async function fetchRanking(fromDate: string | null) {
-  const p = periodClause(fromDate)
-  return query<{ agent_id: string; avg_score: number }>(
-    `SELECT c.agent_id, AVG(m.final_score) AS avg_score
-     FROM ai_evaluation_master m
-     JOIN consultation_master c ON c.consultation_id = m.consultation_id
-     WHERE m.evaluator = 'AI_최종' AND c.agent_id <> 'unknown' ${p.sql}
-     GROUP BY c.agent_id`,
-    p.params,
-  )
-}
-
-/** ③ 영역별 획득률 — 본인/팀을 조건부 집계로 한 번에 (N/A 제외 — 계약 §4) */
+/** ② 영역별 획득률 — 본인만, N/A 제외 (계약 §4. 팀 획득률은 v1.2에서 제거) */
 async function fetchDomainRates(agentId: string, fromDate: string | null) {
   const p = periodClause(fromDate)
   return query<{
@@ -221,26 +235,22 @@ async function fetchDomainRates(agentId: string, fromDate: string | null) {
     a_earned: number | null
     a_max: number | null
     a_applied: number
-    t_earned: number | null
-    t_max: number | null
   }>(
     `SELECT
-       LEFT(d.item_code, 1)                                            AS domain_code,
-       SUM(CASE WHEN c.agent_id = ? THEN d.earned_score END)           AS a_earned,
-       SUM(CASE WHEN c.agent_id = ? THEN d.max_score END)              AS a_max,
-       COUNT(DISTINCT CASE WHEN c.agent_id = ? THEN d.evaluation_id END) AS a_applied,
-       SUM(d.earned_score)                                             AS t_earned,
-       SUM(d.max_score)                                                AS t_max
+       LEFT(d.item_code, 1)             AS domain_code,
+       SUM(d.earned_score)              AS a_earned,
+       SUM(d.max_score)                 AS a_max,
+       COUNT(DISTINCT d.evaluation_id)  AS a_applied
      FROM ai_evaluation_details d
      JOIN ai_evaluation_master m ON m.evaluation_id = d.evaluation_id
      JOIN consultation_master c ON c.consultation_id = m.consultation_id
-     WHERE m.evaluator = 'AI_최종' AND d.level <> '해당없음' ${p.sql}
+     WHERE m.evaluator = 'AI_최종' AND c.agent_id = ? AND d.level <> '해당없음' ${p.sql}
      GROUP BY domain_code`,
-    [agentId, agentId, agentId, ...p.params],
+    [agentId, ...p.params],
   )
 }
 
-/** ④ 항목별 상세 — 적용/N/A 건수·평균 획득 (없는 항목은 빌더가 18개로 채움) */
+/** ③ 항목별 상세 — 적용/N/A 건수·평균 획득 (없는 항목은 빌더가 18개로 채움) */
 async function fetchItemStats(agentId: string, fromDate: string | null) {
   const p = periodClause(fromDate)
   return query<{
@@ -295,52 +305,29 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
   }
 
   const fromDate = periodFromDate(period)
-  const [stats, ranking, domainRows, itemRows] = await Promise.all([
+  const [stats, domainRows, itemRows] = await Promise.all([
     fetchSummaryStats(agentId, fromDate),
-    fetchRanking(fromDate),
     fetchDomainRates(agentId, fromDate),
     fetchItemStats(agentId, fromDate),
   ])
 
-  // ---- summary ----
-  const myRank = ranking.find((r) => r.agent_id === agentId)
-  const rank =
-    myRank == null
-      ? null // 기간 내 평가 0건 or unknown — 순위 없음
-      : 1 + ranking.filter((r) => r.avg_score > myRank.avg_score).length // 동점 공동 순위(RANK)
-
-  // ---- domain_rates (항상 5개, A→E — 계약 §3.3) ----
+  // ---- domain_rates (항상 5개, A→E — 계약 §3.3. v1.2: 본인 값만) ----
   const domainByCode = new Map(domainRows.map((r) => [r.domain_code, r]))
   const domain_rates: AgentReport['domain_rates'] = DOMAIN_CODES.map((code) => {
     const r = domainByCode.get(code)
     const hasAgent = r != null && r.a_max != null && Number(r.a_max) > 0
-    const hasTeam = r != null && r.t_max != null && Number(r.t_max) > 0
     return {
       domain_code: code,
       domain_name: DOMAIN_NAMES[code],
       rate: hasAgent ? round1((Number(r!.a_earned) / Number(r!.a_max)) * 100) : null,
-      team_rate: hasTeam ? round1((Number(r!.t_earned) / Number(r!.t_max)) * 100) : null,
       applied_count: r?.a_applied ?? 0,
     }
   })
 
-  // ---- weak_domain: 적용 영역 중 달성률 최저, 동률이면 배점 합 큰 영역 (계약 §3.2) ----
-  // 단, 최저 영역도 ok 컷 이상이면 약점 없음(null) — 전 영역 우수한 상담사에게
+  // ---- weak_domain: 최저 달성률 영역 (③·④ 공유 순수 함수 selectWeakDomain — 계약 §3.2) ----
+  // 최저 영역도 ok 컷 이상이면 약점 없음(null) — 전 영역 우수한 상담사에게
   // 배지를 달지 않기 위함 (화면③ 목업의 "약점 항목: 없음" 행과 동일 의미)
-  const applied = domain_rates.filter((d) => d.rate !== null)
-  let weak_domain: AgentReport['summary']['weak_domain'] = null
-  if (applied.length > 0) {
-    const worst = [...applied].sort(
-      (a, b) => a.rate! - b.rate! || DOMAIN_MAX[b.domain_code] - DOMAIN_MAX[a.domain_code],
-    )[0]
-    if (worst.rate! < ok) {
-      weak_domain = {
-        domain_code: worst.domain_code,
-        domain_name: DOMAIN_NAMES[worst.domain_code],
-        label: WEAK_LABELS[worst.domain_code],
-      }
-    }
-  }
+  const weak_domain: AgentReport['summary']['weak_domain'] = selectWeakDomain(domain_rates, ok)
 
   // ---- items (항상 18개, 루브릭 순 — 계약 §3.4) ----
   const itemByCode = new Map(itemRows.map((r) => [r.item_code, r]))
@@ -397,15 +384,151 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
       evaluation_count: Number(stats.agent_cnt),
       total_evaluation_count: Number(stats.total_cnt),
       avg_score: stats.agent_avg == null ? null : round1(Number(stats.agent_avg)),
-      team_avg_score: stats.team_avg == null ? null : round1(Number(stats.team_avg)),
       risk_count: Number(stats.agent_risk),
       total_risk_count: Number(stats.total_risk),
-      rank,
-      agent_count: ranking.length,
       weak_domain,
     },
     domain_rates,
     items,
     improvement_items,
+  }
+}
+
+// ---------------------------------------------------------------------
+// 화면③ 대시보드 — GET /api/agents/summary 응답 전체 조립
+// 정본 계약: docs/api/화면3_상담사대시보드_API계약_v1.md
+// 집계 수식·기간 기준·약점 규칙은 화면④(위 buildAgentReport)와 전부 공유:
+// periodFromDate/periodClause·건 단위 평균·N/A 제외·selectWeakDomain·round1.
+// 같은 기간이라면 ③의 어떤 수치도 ④와 어긋나면 버그다 (계약 §4 정합 표).
+// ---------------------------------------------------------------------
+
+export interface AgentsSummary {
+  meta: {
+    period: Period
+    period_from: string | null
+    period_to: string
+    generated_at: string
+    rubric_version: string
+  }
+  summary: {
+    avg_score: number | null
+    evaluation_count: number
+    risk_count: number
+    agent_count: number
+  }
+  agents: {
+    agent_id: string
+    agent_name: string
+    evaluation_count: number
+    avg_score: number | null
+    risk_count: number
+    weak_domain: WeakDomain | null
+  }[]
+}
+
+export async function buildAgentsSummary(period: Period): Promise<AgentsSummary> {
+  const ok = await configRepo.getNumber('item_rate_ok', 80)
+  const fromDate = periodFromDate(period)
+  const p = periodClause(fromDate)
+
+  const [overallRows, agentRows, domainRows] = await Promise.all([
+    // 상단 카드 4개 — 표에서 합산하지 않고 같은 쿼리 기준으로 직접 집계 (계약 §3.2)
+    query<{
+      cnt: number
+      avg_score: number | null
+      risk_cnt: number
+      first_date: string | null
+    }>(
+      `SELECT COUNT(*) AS cnt,
+              AVG(m.final_score) AS avg_score,
+              COALESCE(SUM(m.risk_flagged), 0) AS risk_cnt,
+              DATE_FORMAT(MIN(c.consulted_at), '%Y-%m-%d') AS first_date
+         FROM ai_evaluation_master m
+         JOIN consultation_master c ON c.consultation_id = m.consultation_id
+        WHERE m.evaluator = 'AI_최종' ${p.sql}`,
+      p.params,
+    ),
+    // 상담사별 건수·평균·위험 (unknown 포함 — 계약 결정 6)
+    query<{
+      agent_id: string
+      agent_name: string | null
+      cnt: number
+      avg_score: number | null
+      risk_cnt: number
+    }>(
+      `SELECT c.agent_id,
+              a.agent_name,
+              COUNT(*) AS cnt,
+              AVG(m.final_score) AS avg_score,
+              COALESCE(SUM(m.risk_flagged), 0) AS risk_cnt
+         FROM ai_evaluation_master m
+         JOIN consultation_master c ON c.consultation_id = m.consultation_id
+         LEFT JOIN agents a ON a.agent_id = c.agent_id
+        WHERE m.evaluator = 'AI_최종' ${p.sql}
+        GROUP BY c.agent_id, a.agent_name`,
+      p.params,
+    ),
+    // 상담사×영역 달성률 (N/A 제외 — ④ fetchDomainRates와 동일 수식의 GROUP BY 확장)
+    query<{
+      agent_id: string
+      domain_code: DomainCode
+      earned: number | null
+      max_sum: number | null
+    }>(
+      `SELECT c.agent_id,
+              LEFT(d.item_code, 1) AS domain_code,
+              SUM(d.earned_score) AS earned,
+              SUM(d.max_score) AS max_sum
+         FROM ai_evaluation_details d
+         JOIN ai_evaluation_master m ON m.evaluation_id = d.evaluation_id
+         JOIN consultation_master c ON c.consultation_id = m.consultation_id
+        WHERE m.evaluator = 'AI_최종' AND d.level <> '해당없음' ${p.sql}
+        GROUP BY c.agent_id, domain_code`,
+      p.params,
+    ),
+  ])
+  const overall = overallRows[0]
+
+  // 상담사별 영역 달성률 → 약점 선정 (④와 같은 selectWeakDomain)
+  const ratesByAgent = new Map<string, { domain_code: DomainCode; rate: number | null }[]>()
+  for (const r of domainRows) {
+    if (!ratesByAgent.has(r.agent_id)) ratesByAgent.set(r.agent_id, [])
+    const hasMax = r.max_sum != null && Number(r.max_sum) > 0
+    ratesByAgent.get(r.agent_id)!.push({
+      domain_code: r.domain_code,
+      rate: hasMax ? round1((Number(r.earned) / Number(r.max_sum)) * 100) : null,
+    })
+  }
+
+  const agents: AgentsSummary['agents'] = agentRows
+    .map((r) => ({
+      agent_id: r.agent_id,
+      agent_name: r.agent_name ?? (r.agent_id === 'unknown' ? '미배정' : r.agent_id),
+      evaluation_count: Number(r.cnt),
+      avg_score: r.avg_score == null ? null : round1(Number(r.avg_score)),
+      risk_count: Number(r.risk_cnt),
+      weak_domain: selectWeakDomain(ratesByAgent.get(r.agent_id) ?? [], ok),
+    }))
+    // 평균 내림차순, 동점은 agent_id 오름차순 — 순위 숫자는 계산·표시하지 않음 (계약 결정 5)
+    .sort(
+      (a, b) =>
+        (b.avg_score ?? -1) - (a.avg_score ?? -1) || a.agent_id.localeCompare(b.agent_id),
+    )
+
+  return {
+    meta: {
+      period,
+      period_from: period === 'all' ? overall.first_date : fromDate,
+      period_to: toDateString(new Date()),
+      generated_at: new Date().toISOString(),
+      rubric_version: 'v1.5',
+    },
+    summary: {
+      avg_score: overall.avg_score == null ? null : round1(Number(overall.avg_score)),
+      evaluation_count: Number(overall.cnt),
+      risk_count: Number(overall.risk_cnt),
+      agent_count: agents.length,
+    },
+    agents,
   }
 }

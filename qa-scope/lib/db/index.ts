@@ -17,6 +17,7 @@ import * as agentReport from './agentReportRepo'
 import * as config from './configRepo'
 import * as consultations from './consultationRepo'
 import * as evaluations from './evaluationRepo'
+import * as reviews from './reviewRepo'
 import * as verifyLog from './verifyLogRepo'
 
 const db = {
@@ -28,6 +29,7 @@ const db = {
   config,
   consultations,
   evaluations,
+  reviews,
   verifyLog,
 }
 

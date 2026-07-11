@@ -46,9 +46,19 @@ function stringifyFlagEvidence(evidence: unknown): string {
   return one(evidence)
 }
 
+export interface ScoreOptions {
+  /**
+   * 확정 검수 존재 건 재채점 정책 (검수_쓰기_API계약_v1.md 결정 3) —
+   * 저장 어댑터(persistEvaluation)로 그대로 전달. 기본 skip(안전).
+   * 배치는 채점 시작 전 reviewRepo.hasConfirmedReview()로 먼저 거를 것.
+   */
+  onConfirmedReview?: 'skip' | 'force'
+}
+
 export async function scoreConsultation(
   상담ID: string,
-  rawText: string
+  rawText: string,
+  options: ScoreOptions = {}
 ): Promise<EvalOutput> {
   // 1. 발화 파싱
   const { utterances } = parseTranscript(rawText)
@@ -225,7 +235,9 @@ export async function scoreConsultation(
 
   // 12. 저장 — 로컬 JSON(감사용 백업) + MySQL(조회 정본)
   await saveResult(final)
-  const persisted = await persistEvaluation(상담ID, utterances, final)
+  const persisted = await persistEvaluation(상담ID, utterances, final, {
+    onConfirmedReview: options.onConfirmedReview,
+  })
   if (persisted.unmatchedQuotes.length > 0) {
     console.warn(
       `⚠ 인용 원문대조 불일치 ${persisted.unmatchedQuotes.length}건:`,
