@@ -12,3 +12,6 @@
 # misc
 .DS_Store
 *.log
+
+outputs_run_*/
+report_run_*.txt
