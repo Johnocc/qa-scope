@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "filters": { "date_from": null, "date_to": null, "agent_id": null, "consult_type": null, "status": null },
+    "sort": "risk",
+    "limit": 50,
+    "offset": 0,
+    "generated_at": "2026-07-09T10:30:00+09:00"
+  },
+  "summary": { "total_count": 8, "risk_count": 3, "filtered_count": 8 },
+  "items": [
+    { "evaluation_id": 102, "consultation_code": "dummy_02", "agent_id": "AGT-002", "agent_name": "이준호", "consulted_at": "2026-06-23 14:15:00", "consult_type": "신규·보장", "final_score": 32.4, "risk_flagged": true, "status_label": "불완전판매 의심", "status_labels": ["불완전판매 의심", "저점수"] },
+    { "evaluation_id": 106, "consultation_code": "dummy_06", "agent_id": "AGT-002", "agent_name": "이준호", "consulted_at": "2026-06-29 13:50:00", "consult_type": "단순문의", "final_score": 27.9, "risk_flagged": true, "status_label": "저점수", "status_labels": ["저점수"] },
+    { "evaluation_id": 105, "consultation_code": "dummy_05", "agent_id": "AGT-005", "agent_name": "한지원", "consulted_at": "2026-06-26 10:20:00", "consult_type": "계약변경", "final_score": 93.8, "risk_flagged": true, "status_label": "정상", "status_labels": ["정상"] },
+    { "evaluation_id": 103, "consultation_code": "dummy_03", "agent_id": "AGT-003", "agent_name": "박소영", "consulted_at": "2026-06-24 11:05:00", "consult_type": "해지·환급", "final_score": 49.2, "risk_flagged": false, "status_label": "저점수", "status_labels": ["저점수"] },
+    { "evaluation_id": 107, "consultation_code": "dummy_07", "agent_id": "AGT-006", "agent_name": "김도연", "consulted_at": "2026-06-30 15:10:00", "consult_type": "신규·보장", "final_score": 65.9, "risk_flagged": false, "status_label": "저점수", "status_labels": ["저점수"] },
+    { "evaluation_id": 108, "consultation_code": "dummy_08", "agent_id": "unknown", "agent_name": "미배정", "consulted_at": "2026-07-01 09:05:00", "consult_type": null, "final_score": 88.0, "risk_flagged": false, "status_label": "정상", "status_labels": ["정상"] },
+    { "evaluation_id": 101, "consultation_code": "dummy_01", "agent_id": "AGT-001", "agent_name": "이지현", "consulted_at": "2026-06-22 09:40:00", "consult_type": "신규·보장", "final_score": 100.0, "risk_flagged": false, "status_label": "정상", "status_labels": ["정상"] },
+    { "evaluation_id": 104, "consultation_code": "dummy_04", "agent_id": "AGT-004", "agent_name": "정유나", "consulted_at": "2026-06-25 16:30:00", "consult_type": "보험금청구", "final_score": 100.0, "risk_flagged": false, "status_label": "정상", "status_labels": ["정상"] }
+  ]
+}

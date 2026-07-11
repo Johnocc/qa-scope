@@ -1,0 +1,53 @@
+import { Fragment } from 'react';
+import ScoreBar from '../common/ScoreBar';
+import type { AgentReportItem } from '@/lib/types/agent';
+
+const STATUS_STYLE: Record<string, string> = {
+  양호: 'text-green-700',
+  보통: 'text-amber-700',
+  '개선 필요': 'text-red-700',
+  해당없음: 'text-gray-400',
+};
+
+export default function ItemDetailTable({ items }: { items: AgentReportItem[] }) {
+  let currentDomain = '';
+  return (
+    <table className="w-full text-sm">
+      <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th className="text-left px-4 py-2 font-medium">항목</th>
+          <th className="text-left px-4 py-2 font-medium">달성률</th>
+          <th className="text-left px-4 py-2 font-medium">상태</th>
+          <th className="text-right px-4 py-2 font-medium">적용 건수</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((it) => {
+          const showDomainHeader = it.domain_code !== currentDomain;
+          currentDomain = it.domain_code;
+          return (
+            <Fragment key={it.item_code}>
+              {showDomainHeader && (
+                <tr>
+                  <td colSpan={4} className="px-4 pt-3 pb-1 text-xs font-semibold text-gray-400">
+                    {it.domain_code}영역
+                  </td>
+                </tr>
+              )}
+              <tr className="border-t border-gray-100">
+                <td className="px-4 py-2">
+                  {it.item_code}. {it.item_name}
+                </td>
+                <td className="px-4 py-2">
+                  <ScoreBar rate={it.rate} />
+                </td>
+                <td className={`px-4 py-2 ${STATUS_STYLE[it.status] ?? ''}`}>{it.status}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{it.applied_count}</td>
+              </tr>
+            </Fragment>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
