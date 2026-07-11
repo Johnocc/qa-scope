@@ -6,8 +6,12 @@ import { putReview, deleteReview } from '@/lib/api/evaluations';
 import type { Review } from '@/lib/types/evaluation';
 
 /**
- * 검수확정·코멘트 (CLAUDE.md §9 화면② 하단). v0 범위만 — 항목별 점수수정
- * (overrides)은 연기 v1 범위라 UI 없음 (검수_쓰기_API계약_v1.md §1 결정 1).
+ * 검수 3상태 UI (검수개정안 v2): 미검수(review=null) / 검수중 / 확정.
+ * 상태는 서버가 내려준 review_status로만 판정한다 — 프론트가 추정하지 않는다.
+ * 확정 상태는 입력란을 잠근다: 고치려면 철회가 먼저다. 확정 철회는 재채점
+ * 스킵 보호가 풀리는 행위라 2차 확인을 거친다 (검수_쓰기_API계약_v1.md 결정 3).
+ *
+ * v0 범위만 — 항목별 점수수정(overrides)은 연기 v1 범위라 UI 없음 (계약 §1 결정 1).
  * 저장/철회 성공 시 router.refresh()로 서버 컴포넌트가 review·COALESCE된
  * 표시값을 다시 그리게 한다.
  */
@@ -23,6 +27,10 @@ export default function ReviewPanel({
   const [comment, setComment] = useState(review?.review_comment ?? '');
   const [pending, setPending] = useState<'save' | 'confirm' | 'withdraw' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const state = review === null ? '미검수' : review.review_status;
+  const locked = state === '확정';
+  const busy = pending !== null;
 
   async function submit(status: '검수중' | '확정') {
     if (!reviewer.trim()) {
@@ -46,6 +54,11 @@ export default function ReviewPanel({
   }
 
   async function withdraw() {
+    // 확정 철회는 재채점 스킵 보호가 풀리는 행위라 2차 확인 (검수중 철회는 그 보호가
+    // 애초에 없어 확인 없이 바로 실행 — 계약 결정 3-A 배경 그대로).
+    if (state === '확정' && !window.confirm('확정을 철회하면 재채점 대상이 됩니다. 철회하시겠습니까?')) {
+      return;
+    }
     setPending('withdraw');
     setError(null);
     try {
@@ -58,73 +71,82 @@ export default function ReviewPanel({
     }
   }
 
-  const busy = pending !== null;
+  const BADGE_STYLE: Record<typeof state, string> = {
+    미검수: 'bg-na-bg text-na-text',
+    검수중: 'bg-warn-bg text-warn-text',
+    확정: 'bg-ok-bg text-ok-text',
+  };
+  const badgeLabel = state === '검수중' ? `검수중 · ${review!.reviewer}` : state === '확정' ? '확정 ✓' : '미검수';
 
   return (
-    <div className="px-6 py-4 border-t border-gray-200 bg-white">
-      <div className="flex items-center justify-between mb-2">
+    <div className="border-t border-border bg-surface-card px-6 py-4">
+      <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-medium">검수</h3>
-        {review && (
-          <span
-            className={`text-xs px-2 py-0.5 rounded ${
-              review.review_status === '확정'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-amber-100 text-amber-700'
-            }`}
-          >
-            {review.review_status}
-          </span>
-        )}
+        <span className={`rounded-pill px-2.5 py-0.5 text-xs font-medium ${BADGE_STYLE[state]}`}>
+          {badgeLabel}
+        </span>
       </div>
 
       {review && review.overrides.length > 0 && (
-        <div className="text-xs text-gray-500 mb-2">
+        <div className="mb-2 text-xs text-sub">
           점수 수정: {review.overrides.map((o) => `${o.item_code}(${o.level_original}→${o.level_override})`).join(', ')}
         </div>
       )}
 
-      <div className="flex gap-3 items-start flex-wrap">
+      {locked && (
+        <p className="mb-2 text-xs text-sub">확정된 검수입니다. 내용을 고치려면 먼저 철회하세요.</p>
+      )}
+
+      <div className="flex flex-wrap items-start gap-3">
         <input
           type="text"
           placeholder="검수자 이름"
           value={reviewer}
           onChange={(e) => setReviewer(e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1 text-sm w-32"
+          disabled={locked}
+          readOnly={locked}
+          className="w-32 rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm placeholder:text-sub/60 focus:outline-none focus:ring-2 focus:ring-ink/20 disabled:bg-surface-muted disabled:text-sub"
         />
         <textarea
           placeholder="코멘트"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={2}
-          className="border border-gray-300 rounded px-2 py-1 text-sm flex-1 min-w-[200px]"
+          disabled={locked}
+          readOnly={locked}
+          className="min-w-[200px] flex-1 rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm placeholder:text-sub/60 focus:outline-none focus:ring-2 focus:ring-ink/20 disabled:bg-surface-muted disabled:text-sub"
         />
         <div className="flex gap-2">
-          <button
-            onClick={() => submit('검수중')}
-            disabled={busy}
-            className="text-sm px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
-          >
-            {pending === 'save' ? '저장 중...' : '검수 저장'}
-          </button>
-          <button
-            onClick={() => submit('확정')}
-            disabled={busy}
-            className="text-sm px-3 py-1.5 rounded bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50"
-          >
-            {pending === 'confirm' ? '확정 중...' : '검수확정'}
-          </button>
-          {review && (
+          {!locked && (
+            <>
+              <button
+                onClick={() => submit('검수중')}
+                disabled={busy}
+                className="rounded-control bg-surface-muted px-3 py-1.5 text-sm hover:bg-surface-hover disabled:opacity-50"
+              >
+                {pending === 'save' ? '저장 중...' : '검수 저장'}
+              </button>
+              <button
+                onClick={() => submit('확정')}
+                disabled={busy}
+                className="rounded-control bg-ink px-3 py-1.5 text-sm text-ink-inverse hover:opacity-90 disabled:opacity-50"
+              >
+                {pending === 'confirm' ? '확정 중...' : '검수확정'}
+              </button>
+            </>
+          )}
+          {state !== '미검수' && (
             <button
               onClick={withdraw}
               disabled={busy}
-              className="text-sm px-3 py-1.5 rounded text-red-600 hover:underline disabled:opacity-50"
+              className="rounded-control px-3 py-1.5 text-sm text-danger-text hover:underline disabled:opacity-50"
             >
               {pending === 'withdraw' ? '철회 중...' : '검수 철회'}
             </button>
           )}
         </div>
       </div>
-      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+      {error && <p className="mt-2 text-xs text-danger-text">{error}</p>}
     </div>
   );
 }
