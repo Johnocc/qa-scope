@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "match_strategy": "longest_first",
+  "mappings": [
+    { "keyword": "종신연금",     "codes": ["P4"] },
+    { "keyword": "확정연금",     "codes": ["P4"] },
+    { "keyword": "변액유니버설", "codes": ["P5"] },
+    { "keyword": "종신보험",     "codes": ["P1"] },
+    { "keyword": "정기보험",     "codes": ["P2"] },
+    { "keyword": "저축보험",     "codes": ["P3"] },
+    { "keyword": "연금보험",     "codes": ["P4"] },
+    { "keyword": "건강보험",     "codes": ["P6"] },
+    { "keyword": "어린이보험",   "codes": ["P7"] },
+    { "keyword": "암보험",       "codes": ["P6"] },
+    { "keyword": "소아암",       "codes": ["P7"] },
+    { "keyword": "변액",         "codes": ["P5"] }
+  ],
+  "always_include": ["공통 사항"],
+  "fallback": "full_insert_with_log"
+}

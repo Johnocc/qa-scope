@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { searchPolicy } from './search'
+import { detectProductCodes, selectProductChunks } from './productLookup'
 
 export type ConsultationContext = {
   hardDocs: {
@@ -52,10 +53,24 @@ export async function retrieveContext(
     },
     ragDocs: {
       policy,
-      productSheet: readFileSync(
-        join(root, 'docs/rag/한빛생명_상품설명서_v1_0.md'),
-        'utf-8'
-      ),
+      productSheet: (() => {
+        if (process.env.PRODUCT_LOOKUP_ENABLED === 'true') {
+          const codes = detectProductCodes(utteranceText)
+          if (codes.length === 0) {
+            console.warn('[productLookup] 상품 키워드 0건 감지 — 전체 삽입 폴백')
+            return readFileSync(
+              join(root, 'docs/rag/한빛생명_상품설명서_v1_0.md'),
+              'utf-8'
+            )
+          }
+          console.log('[productLookup] 감지 코드:', codes.join(','))
+          return selectProductChunks(codes)
+        }
+        return readFileSync(
+          join(root, 'docs/rag/한빛생명_상품설명서_v1_0.md'),
+          'utf-8'
+        )
+      })(),
     },
   }
 }
