@@ -218,7 +218,9 @@ export async function scoreConsultation(
       평가주체: 'AI_1차',
       AI모델: process.env.LLM_MODEL ?? 'gemini-2.5-flash',
       루브릭버전: 'v1.5',
-      평가일시: new Date().toISOString(),
+      // KST 고정 오프셋 표기 — DB evaluated_at(세션 tz +09:00의 DEFAULT CURRENT_TIMESTAMP)과
+      // 벽시계가 일치하도록 UTC(Z)가 아닌 +09:00으로 기록. 실행 환경(Vercel=UTC)과 무관.
+      평가일시: new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace(/\.\d{3}Z$/, '+09:00'),
     },
     항목평가: filledItems,
     위험플래그: flags,

@@ -5,7 +5,10 @@
  *  - docker-compose가 주입하는 환경변수(DB_HOST 등)를 그대로 사용.
  *    Next.js 밖(스크립트)에서 쓸 때를 대비해 dotenv도 로드.
  *  - dateStrings: DATETIME을 JS Date로 변환하지 않고 'YYYY-MM-DD HH:MM:SS'
- *    문자열 그대로 받는다 (타임존 이중변환 사고 방지 — 서버 TZ=Asia/Seoul 전제).
+ *    문자열 그대로 받는다 (타임존 이중변환 사고 방지).
+ *  - 세션 time_zone을 커넥션마다 DB_TIME_ZONE(기본 +09:00)으로 고정한다.
+ *    클라우드 MySQL(Aiven 등)은 서버 기본이 UTC라, 이걸 안 하면
+ *    NOW()/DEFAULT CURRENT_TIMESTAMP가 UTC 벽시계로 DATETIME에 박힌다.
  *  - decimalNumbers: DECIMAL(획득점수 2.5 등)을 문자열이 아닌 number로 수신.
  *  - ssl: 클라우드 MySQL(Aiven 등)은 TLS를 강제한다. DB_SSL_ENABLED=true일 때만
  *    켜지므로 로컬 docker-compose(평문)에는 영향 없음.
@@ -44,6 +47,14 @@ export const pool: Pool = mysql.createPool({
   dateStrings: true,
   decimalNumbers: true,
   namedPlaceholders: false,
+});
+
+// 새 커넥션이 풀에 들어올 때마다 세션 타임존 고정.
+// 'connection' 핸들러의 쿼리는 그 커넥션의 큐 맨 앞에 서므로
+// 이후 사용자 쿼리보다 항상 먼저 실행된다.
+const DB_TIME_ZONE = process.env.DB_TIME_ZONE || '+09:00';
+pool.on('connection', (conn) => {
+  conn.query('SET time_zone = ?', [DB_TIME_ZONE]);
 });
 
 /** 단건 쿼리 (풀에서 자동 획득/반납). 반환 타입은 호출부에서 지정 가능. */
