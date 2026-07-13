@@ -7,9 +7,29 @@
  *  - dateStrings: DATETIME을 JS Date로 변환하지 않고 'YYYY-MM-DD HH:MM:SS'
  *    문자열 그대로 받는다 (타임존 이중변환 사고 방지 — 서버 TZ=Asia/Seoul 전제).
  *  - decimalNumbers: DECIMAL(획득점수 2.5 등)을 문자열이 아닌 number로 수신.
+ *  - ssl: 클라우드 MySQL(Aiven 등)은 TLS를 강제한다. DB_SSL_ENABLED=true일 때만
+ *    켜지므로 로컬 docker-compose(평문)에는 영향 없음.
  */
 import 'dotenv/config';
+import { readFileSync } from 'node:fs';
 import mysql, { type Pool, type PoolConnection } from 'mysql2/promise';
+
+/**
+ * SSL 설정 조립. CA 인증서는 두 방식 중 하나로 주입:
+ *  - DB_SSL_CA_PATH: PEM 파일 경로 (로컬/스크립트 실행용)
+ *  - DB_SSL_CA: PEM 내용 자체 (Vercel 등 파일을 못 두는 환경용, "\n" 이스케이프 허용)
+ * Aiven은 자체 CA를 쓰므로 CA 없이 rejectUnauthorized: true면 검증에 실패한다.
+ */
+function buildSslConfig() {
+  if (process.env.DB_SSL_ENABLED !== 'true') return undefined;
+  const ca = process.env.DB_SSL_CA_PATH
+    ? readFileSync(process.env.DB_SSL_CA_PATH, 'utf-8')
+    : process.env.DB_SSL_CA?.replace(/\\n/g, '\n');
+  return {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    ...(ca ? { ca } : {}),
+  };
+}
 
 export const pool: Pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -17,6 +37,7 @@ export const pool: Pool = mysql.createPool({
   database: process.env.DB_NAME || 'qa_scope',
   user: process.env.DB_USER || 'qa_user',
   password: process.env.DB_PASSWORD || '',
+  ssl: buildSslConfig(),
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_POOL_SIZE || 10),
   charset: 'utf8mb4_unicode_ci',
