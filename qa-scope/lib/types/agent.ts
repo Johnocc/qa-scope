@@ -102,4 +102,6 @@ export interface AgentReportResponse {
   domain_rates: DomainRate[];
   items: AgentReportItem[];
   improvement_items: ImprovementItem[];
+  /** rate < item_rate_warn 전체 항목 수(5개 초과분 존재 여부 판단용). improvement_items는 여전히 최대 5개 */
+  improvement_items_total_count: number;
 }

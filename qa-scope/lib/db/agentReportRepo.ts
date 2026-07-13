@@ -166,6 +166,8 @@ export interface AgentReport {
     rate: number
     tip: string | null
   }[]
+  /** rate < item_rate_warn 전체 항목 수(5개 초과분 존재 여부 판단용). improvement_items는 여전히 최대 5개 */
+  improvement_items_total_count: number
 }
 
 // ---------------------------------------------------------------------
@@ -353,9 +355,10 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
   })
 
   // ---- improvement_items: rate < warn, 오름차순, 최대 5개 (계약 §3.5) ----
-  const improvement_items: AgentReport['improvement_items'] = items
+  const improvementCandidates = items
     .filter((it) => it.rate !== null && it.rate < warn)
     .sort((a, b) => a.rate! - b.rate!)
+  const improvement_items: AgentReport['improvement_items'] = improvementCandidates
     .slice(0, 5)
     .map((it) => ({
       item_code: it.item_code,
@@ -391,6 +394,7 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
     domain_rates,
     items,
     improvement_items,
+    improvement_items_total_count: improvementCandidates.length,
   }
 }
 

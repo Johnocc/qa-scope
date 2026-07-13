@@ -86,7 +86,10 @@ export default async function AgentReportPage({
           </div>
           <div className="rounded-card border border-border bg-surface-card">
             <div className="border-b border-border-subtle px-4 py-2 text-sm font-medium">개선 필요 항목</div>
-            <ImprovementItems items={report.improvement_items} />
+            <ImprovementItems
+              items={report.improvement_items}
+              totalCount={report.improvement_items_total_count}
+            />
           </div>
         </div>
 

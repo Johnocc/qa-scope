@@ -12,13 +12,13 @@ const STATUS_STYLE: Record<string, string> = {
 export default function ItemDetailTable({ items }: { items: AgentReportItem[] }) {
   let currentDomain = '';
   return (
-    <table className="w-full text-sm">
-      <thead className="bg-surface-muted text-xs uppercase tracking-wide text-sub">
+    <table className="w-full text-base">
+      <thead className="bg-surface-muted text-sm uppercase tracking-wide text-sub">
         <tr>
-          <th className="px-4 py-2 text-left font-medium">항목</th>
-          <th className="px-4 py-2 text-left font-medium">달성률</th>
-          <th className="px-4 py-2 text-left font-medium">상태</th>
-          <th className="px-4 py-2 text-right font-medium">적용 건수</th>
+          <th className="px-4 py-2.5 text-left font-medium">항목</th>
+          <th className="px-4 py-2.5 text-left font-medium">달성률</th>
+          <th className="px-4 py-2.5 text-left font-medium">상태</th>
+          <th className="px-4 py-2.5 text-right font-medium">적용 건수</th>
         </tr>
       </thead>
       <tbody>
@@ -29,20 +29,20 @@ export default function ItemDetailTable({ items }: { items: AgentReportItem[] })
             <Fragment key={it.item_code}>
               {showDomainHeader && (
                 <tr>
-                  <td colSpan={4} className="px-4 pt-3 pb-1 text-xs font-semibold text-sub">
+                  <td colSpan={4} className="px-4 pt-3 pb-1 text-sm font-semibold text-sub">
                     {it.domain_code}영역
                   </td>
                 </tr>
               )}
               <tr className="border-t border-border-subtle">
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-3">
                   {it.item_code}. {it.item_name}
                 </td>
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-3">
                   <ScoreBar rate={it.rate} />
                 </td>
-                <td className={`px-4 py-2.5 ${STATUS_STYLE[it.status] ?? ''}`}>{it.status}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums">{it.applied_count}</td>
+                <td className={`px-4 py-3 font-medium ${STATUS_STYLE[it.status] ?? ''}`}>{it.status}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{it.applied_count}</td>
               </tr>
             </Fragment>
           );

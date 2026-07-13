@@ -28,7 +28,16 @@ export default async function EvaluationDetailPage({
           ← 목록으로
         </Link>
         <h2 className="text-base font-semibold">{header.consultation_code}</h2>
-        <span className="text-sm text-sub">{header.agent_name || header.agent_id || '상담사 정보 없음'}</span>
+        {header.agent_id && header.agent_id !== 'unknown' ? (
+          <Link
+            href={`/agents/${header.agent_id}/report`}
+            className="text-sm text-sub underline decoration-border underline-offset-4 hover:text-ink hover:decoration-ink"
+          >
+            {header.agent_name || header.agent_id}
+          </Link>
+        ) : (
+          <span className="text-sm text-sub">{header.agent_name || '상담사 정보 없음'}</span>
+        )}
         <span className="text-sm text-sub">{header.consult_type ?? '—'}</span>
         <RiskDot active={displayRisk} />
         <StatusBadge labels={displayLabels} />

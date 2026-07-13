@@ -166,7 +166,12 @@ GET /api/agents/{agent_id}/report?period=30d
 | `tip` | string\|null | 코칭 팁 문구. **항목코드별 정적 매핑**(서버 상수)에서 제공. 문구 미확정 항목은 `null` — 프론트는 `null`이면 팁 줄 생략 |
 
 - **포함 규칙:** `rate < thresholds.item_rate_warn` 인 항목만, 오름차순, 최대 5개.
-- 해당 항목이 없으면 빈 배열 `[]` → 프론트는 "개선 필요 항목 없음 🎉" 등 빈 상태 표시.
+- 해당 항목이 없으면 빈 배열 `[]` → 프론트는 "개선 필요 항목 없음" 등 빈 상태 표시.
+
+응답 최상위에 `improvement_items_total_count`(number, v1.3 추가)가 함께 내려간다 —
+`rate < thresholds.item_rate_warn`에 해당하는 **전체** 항목 수(5개 초과분 포함). `improvement_items`는
+여전히 최대 5개만 반환하므로, 프론트는 `improvement_items_total_count > improvement_items.length`일 때
+"외 N건 더"를 표시해 목록이 잘려 있음을 사용자가 오인하지 않게 한다 (팀장 UI 컨펌 피드백 B, 2026-07-13).
 
 ---
 
