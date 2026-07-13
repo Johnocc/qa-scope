@@ -12,6 +12,18 @@ const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
 
+// lib/db/pool.ts 와 동일한 규칙 — 클라우드 MySQL(Aiven 등)의 TLS 강제 대응
+function buildSslConfig() {
+  if (process.env.DB_SSL_ENABLED !== 'true') return undefined;
+  const ca = process.env.DB_SSL_CA_PATH
+    ? fs.readFileSync(process.env.DB_SSL_CA_PATH, 'utf8')
+    : process.env.DB_SSL_CA && process.env.DB_SSL_CA.replace(/\\n/g, '\n');
+  return {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    ...(ca ? { ca } : {}),
+  };
+}
+
 async function main() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   const conn = await mysql.createConnection({
@@ -19,6 +31,7 @@ async function main() {
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
+    ssl: buildSslConfig(),
     multipleStatements: true, // 스키마 파일은 여러 구문 → 허용
   });
   await conn.query(sql);
