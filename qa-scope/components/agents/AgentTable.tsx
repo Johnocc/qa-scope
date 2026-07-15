@@ -22,6 +22,7 @@ export default function AgentTable({ agents, period }: { agents: AgentSummaryRow
           <th className="px-4 py-2 text-left font-medium">평균점수</th>
           <th className="px-4 py-2 text-right font-medium">위험</th>
           <th className="px-4 py-2 text-left font-medium">약점 항목</th>
+          <th className="px-4 py-2 text-left font-medium">리포트</th>
         </tr>
       </thead>
       <tbody>
@@ -46,6 +47,18 @@ export default function AgentTable({ agents, period }: { agents: AgentSummaryRow
             <td className="px-4 py-2.5 text-right tabular-nums">{a.risk_count}</td>
             <td className="px-4 py-2.5">
               {a.weak_domain ? a.weak_domain.label : <span className="text-sub">없음</span>}
+            </td>
+            <td className="px-4 py-2.5">
+              {a.agent_id === 'unknown' ? (
+                <span className="text-sub">—</span>
+              ) : (
+                <Link
+                  href={`/agents/${a.agent_id}/report?period=${period}`}
+                  className="rounded-control border border-border px-2.5 py-1 text-xs font-medium text-ink hover:bg-surface-hover"
+                >
+                  리포트 보기
+                </Link>
+              )}
             </td>
           </tr>
         ))}
