@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getEvaluationDetail } from '@/lib/api/evaluations';
+import { ApiError } from '@/lib/api/client';
 import DialogueList from '@/components/evaluation-detail/DialogueList';
 import ItemScorePanel from '@/components/evaluation-detail/ItemScorePanel';
 import ReviewPanel from '@/components/evaluation-detail/ReviewPanel';
@@ -14,7 +16,17 @@ export default async function EvaluationDetailPage({
 }) {
   const { evaluationId } = await params;
   const id = Number(evaluationId);
-  const { header, evaluation, dialogues, review } = await getEvaluationDetail(id);
+
+  let detailResult: Awaited<ReturnType<typeof getEvaluationDetail>>;
+  try {
+    detailResult = await getEvaluationDetail(id);
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 404 || err.status === 400)) {
+      notFound();
+    }
+    throw err;
+  }
+  const { header, evaluation, dialogues, review } = detailResult;
 
   // 화면 표시값 = COALESCE(검수 유효값, AI 원본) — 검수_쓰기_API계약_v1.md §4,
   // 화면② 계약 v1.1. 검수 없으면(review: null) AI 원본 그대로.
