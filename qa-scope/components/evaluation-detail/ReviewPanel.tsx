@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { putReview, deleteReview } from '@/lib/api/evaluations';
 import type { Review } from '@/lib/types/evaluation';
 
@@ -27,6 +28,7 @@ export default function ReviewPanel({
   const [comment, setComment] = useState(review?.review_comment ?? '');
   const [pending, setPending] = useState<'save' | 'confirm' | 'withdraw' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [justConfirmed, setJustConfirmed] = useState(false);
 
   const state = review === null ? '미검수' : review.review_status;
   const locked = state === '확정';
@@ -45,6 +47,7 @@ export default function ReviewPanel({
         reviewer: reviewer.trim(),
         review_comment: comment.trim() || null,
       });
+      setJustConfirmed(status === '확정');
       router.refresh();
     } catch (e: any) {
       setError(e.message ?? '저장 실패');
@@ -63,6 +66,7 @@ export default function ReviewPanel({
     setError(null);
     try {
       await deleteReview(evaluationId);
+      setJustConfirmed(false);
       router.refresh();
     } catch (e: any) {
       setError(e.message ?? '철회 실패');
@@ -147,6 +151,18 @@ export default function ReviewPanel({
         </div>
       </div>
       {error && <p className="mt-2 text-xs text-danger-text">{error}</p>}
+
+      {justConfirmed && (
+        <div className="mt-3 flex items-center justify-between rounded-control border border-ok-border bg-ok-bg px-3 py-2 text-sm text-ok-text">
+          <span>검수가 확정되었습니다.</span>
+          <Link
+            href="/evaluations"
+            className="rounded-control bg-ok-bg px-2.5 py-1 text-sm font-medium text-ok-text underline decoration-ok-text underline-offset-4 hover:opacity-80"
+          >
+            목록으로 돌아가기
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
