@@ -38,9 +38,6 @@ export default async function AgentsPage({
       </div>
       <AgentSummaryCards summary={data.summary} />
       <AgentTable agents={data.agents} period={period} />
-      <div className="px-6 py-4 text-xs text-sub">
-        코칭(약점 진단) 도구입니다 — 순위·팀 비교는 표시하지 않습니다.
-      </div>
     </div>
   );
 }
