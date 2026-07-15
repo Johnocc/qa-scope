@@ -12,6 +12,11 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'all', label: '전체 기간' },
 ];
 
+const PERIOD_FILE_LABEL: Record<string, string> = { '30d': '30일', '90d': '90일', all: '전체' };
+function periodFileLabel(period: string): string {
+  return PERIOD_FILE_LABEL[period] ?? period;
+}
+
 export default async function AgentReportPage({
   params,
   searchParams,
@@ -48,7 +53,10 @@ export default async function AgentReportPage({
               {p.label}
             </Link>
           ))}
-          <PdfDownloadButton targetId="agent-report-body" fileName={`${report.meta.agent_name}_평가리포트.pdf`} />
+          <PdfDownloadButton
+            targetId="agent-report-body"
+            fileName={`${report.meta.agent_name}_평가리포트_${periodFileLabel(report.meta.period)}_${report.meta.generated_at.slice(0, 10)}.pdf`}
+          />
         </div>
       </div>
 
