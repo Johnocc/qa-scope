@@ -107,9 +107,9 @@ body {
   font-family: var(--font-sans);
 }
 
-/* 화면② "항목 클릭 → 원문 점프": 앵커 이동 후 대상 발화를 강조 (JS 불필요) */
-:target {
-  background-color: var(--target-bg) !important;
+/* 화면② "항목 클릭 → 원문 점프": 앵커 이동 후 대상 발화의 말풍선을 강조 (JS 불필요) */
+:target .bubble {
+  background-color: var(--target-bg);
 }
 
 @media (prefers-reduced-motion: reduce) {

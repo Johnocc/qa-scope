@@ -10,8 +10,10 @@ function formatOffset(sec: number | null): string {
 /**
  * 각 발화에 id="d-{dialogue_id}"를 달아두면, 우측 항목 패널의 "근거 발화
  * 보기" 링크(#d-{dialogue_id})를 클릭했을 때 브라우저가 그 지점으로 스크롤
- * 하고, globals.css의 `:target` 규칙이 하이라이트한다 — 클라이언트 JS 없이
- * "항목 클릭 → 원문 점프"(계약 §4)를 구현.
+ * 하고, globals.css의 `:target .bubble` 규칙이 말풍선만 하이라이트한다 —
+ * 클라이언트 JS 없이 "항목 클릭 → 원문 점프"(계약 §4)를 구현. id는 말풍선이
+ * 아니라 최외곽 wrapper에 달아 :target이 선택되고, 하이라이트 자체는 그
+ * 안의 .bubble 요소에 적용된다.
  */
 export default function DialogueList({ dialogues }: { dialogues: DialogueTurn[] }) {
   if (dialogues.length === 0) {
@@ -19,19 +21,42 @@ export default function DialogueList({ dialogues }: { dialogues: DialogueTurn[] 
   }
 
   return (
-    <div className="divide-y divide-border-subtle">
-      {dialogues.map((d) => (
-        <div
-          id={`d-${d.dialogue_id}`}
-          key={d.dialogue_id}
-          className={`scroll-mt-4 px-4 py-2.5 text-sm ${d.speaker === '고객' ? 'bg-surface-muted' : ''}`}
-        >
-          <div className="mb-0.5 text-xs text-sub">
-            [{formatOffset(d.offset_sec)}] {d.speaker}
+    <div className="space-y-3 p-4">
+      {dialogues.map((d) => {
+        const isCustomer = d.speaker === '고객';
+        const bubble = (
+          <div
+            className={`bubble max-w-[75%] rounded-card border border-border px-3.5 py-2.5 text-sm ${
+              isCustomer ? 'bg-surface-muted' : 'bg-surface-card'
+            }`}
+          >
+            {d.content}
           </div>
-          <div>{d.content}</div>
-        </div>
-      ))}
+        );
+        const time = <span className="shrink-0 text-xs text-sub">[{formatOffset(d.offset_sec)}]</span>;
+        return (
+          <div
+            id={`d-${d.dialogue_id}`}
+            key={d.dialogue_id}
+            className={`scroll-mt-4 flex flex-col gap-0.5 px-1 py-1 ${isCustomer ? 'items-start' : 'items-end'}`}
+          >
+            <span className="text-xs text-sub">{d.speaker}</span>
+            <div className={`flex items-end gap-2 ${isCustomer ? 'justify-start' : 'justify-end'}`}>
+              {isCustomer ? (
+                <>
+                  {bubble}
+                  {time}
+                </>
+              ) : (
+                <>
+                  {time}
+                  {bubble}
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
