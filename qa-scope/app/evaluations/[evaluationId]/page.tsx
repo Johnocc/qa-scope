@@ -3,6 +3,7 @@ import { getEvaluationDetail } from '@/lib/api/evaluations';
 import DialogueList from '@/components/evaluation-detail/DialogueList';
 import ItemScorePanel from '@/components/evaluation-detail/ItemScorePanel';
 import ReviewPanel from '@/components/evaluation-detail/ReviewPanel';
+import SaleInfoPanel from '@/components/evaluation-detail/SaleInfoPanel';
 import StatusBadge from '@/components/common/StatusBadge';
 import RiskDot from '@/components/common/RiskDot';
 
@@ -48,6 +49,7 @@ export default async function EvaluationDetailPage({
           <DialogueList dialogues={dialogues} />
         </div>
         <div className="max-h-[calc(100vh-9rem)] overflow-y-auto">
+          {evaluation.판매정보 && <SaleInfoPanel saleInfo={evaluation.판매정보} />}
           <ItemScorePanel items={evaluation.항목평가} />
         </div>
       </div>
