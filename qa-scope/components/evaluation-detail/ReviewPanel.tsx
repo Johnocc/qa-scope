@@ -67,6 +67,8 @@ export default function ReviewPanel({
     try {
       await deleteReview(evaluationId);
       setJustConfirmed(false);
+      setReviewer('');
+      setComment('');
       router.refresh();
     } catch (e: any) {
       setError(e.message ?? '철회 실패');
