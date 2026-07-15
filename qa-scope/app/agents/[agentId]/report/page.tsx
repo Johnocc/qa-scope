@@ -101,7 +101,7 @@ export default async function AgentReportPage({
           </div>
         </div>
 
-        <div className="px-6 py-4">
+        <div id="item-detail" className="px-6 py-4">
           <div className="overflow-hidden rounded-card border border-border bg-surface-card">
             <ItemDetailTable items={report.items} />
           </div>

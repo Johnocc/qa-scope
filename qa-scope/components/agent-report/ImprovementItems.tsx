@@ -25,7 +25,13 @@ export default function ImprovementItems({
           {it.tip && <p className="mt-1 text-xs text-sub">{it.tip}</p>}
         </div>
       ))}
-      {remaining > 0 && <p className="text-center text-xs text-sub">외 {remaining}건 더</p>}
+      {remaining > 0 && (
+        <p className="text-center text-xs text-sub">
+          <a href="#item-detail" className="underline decoration-sub underline-offset-4 hover:text-ink hover:decoration-ink">
+            외 {remaining}건 — 아래 항목별 상세에서 확인
+          </a>
+        </p>
+      )}
     </div>
   );
 }
