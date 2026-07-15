@@ -513,11 +513,15 @@ export async function buildAgentsSummary(period: Period): Promise<AgentsSummary>
       risk_count: Number(r.risk_cnt),
       weak_domain: selectWeakDomain(ratesByAgent.get(r.agent_id) ?? [], ok),
     }))
-    // 평균 내림차순, 동점은 agent_id 오름차순 — 순위 숫자는 계산·표시하지 않음 (계약 결정 5)
-    .sort(
-      (a, b) =>
-        (b.avg_score ?? -1) - (a.avg_score ?? -1) || a.agent_id.localeCompare(b.agent_id),
-    )
+    // 위험 건수 내림차순 → 평균 오름차순 → agent_id 오름차순
+    // (계약 결정 5 개정 2026-07-16). 순위 숫자는 계산·표시하지 않음
+    .sort((a, b) => {
+      if (b.risk_count !== a.risk_count) return b.risk_count - a.risk_count
+      if (a.avg_score === null && b.avg_score === null) return a.agent_id.localeCompare(b.agent_id)
+      if (a.avg_score === null) return 1
+      if (b.avg_score === null) return -1
+      return a.avg_score - b.avg_score || a.agent_id.localeCompare(b.agent_id)
+    })
 
   return {
     meta: {
