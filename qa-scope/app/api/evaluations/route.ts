@@ -36,6 +36,12 @@ function parseParams(searchParams: URLSearchParams):
     return { ok: false, error: 'invalid status' };
   }
 
+  const reviewStatus = searchParams.get('review_status');
+  const REVIEW_STATUSES = ['미검수', '검수중', '확정'] as const;
+  if (reviewStatus && !(REVIEW_STATUSES as readonly string[]).includes(reviewStatus)) {
+    return { ok: false, error: 'invalid review_status' };
+  }
+
   const sort = searchParams.get('sort') ?? 'risk';
   if (sort !== 'risk' && sort !== 'date') {
     return { ok: false, error: 'invalid sort' };
@@ -55,6 +61,7 @@ function parseParams(searchParams: URLSearchParams):
       agentId: searchParams.get('agent_id') || null,
       consultType: consultType || null,
       statusLabel: status || null,
+      reviewStatus: (reviewStatus as '미검수' | '검수중' | '확정' | null) || null,
       sort,
       limit,
       offset,
@@ -88,6 +95,7 @@ export async function GET(request: Request) {
       risk_flagged: Boolean(r.risk_flagged),
       status_label: r.status_label,
       status_labels: computeStatusLabels(r.status_label, Number(r.final_score), cut),
+      review_status: r.review_status as '미검수' | '검수중' | '확정',
     }));
 
     return NextResponse.json({
@@ -98,6 +106,7 @@ export async function GET(request: Request) {
           agent_id: q.agentId,
           consult_type: q.consultType,
           status: q.statusLabel,
+          review_status: q.reviewStatus,
         },
         sort: q.sort,
         limit: q.limit,

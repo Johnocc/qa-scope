@@ -60,6 +60,8 @@ export interface DashboardQuery {
   agentId?: string | null;
   consultType?: string | null;
   statusLabel?: string | null;
+  /** 미검수/검수중/확정. '미검수' 필터 = r.review_status IS NULL */
+  reviewStatus?: '미검수' | '검수중' | '확정' | null;
   /** 'risk' = 위험·저점 우선(계약 결정 4, 기본) / 'date' = 상담일 최신순 */
   sort?: 'risk' | 'date';
   limit?: number;
@@ -339,6 +341,7 @@ function dashboardWhere({
   agentId = null,
   consultType = null,
   statusLabel = null,
+  reviewStatus = null,
 }: DashboardQuery): { sql: string; params: any[] } {
   const conds: string[] = [`m.evaluator = 'AI_최종'`];
   const params: any[] = [];
@@ -363,6 +366,13 @@ function dashboardWhere({
     conds.push('m.status_label = ?');
     params.push(statusLabel);
   }
+  if (reviewStatus === '미검수') {
+    // 미검수 = evaluation_reviews 행 없음
+    conds.push('r.review_status IS NULL');
+  } else if (reviewStatus) {
+    conds.push('r.review_status = ?');
+    params.push(reviewStatus);
+  }
   return { sql: `WHERE ${conds.join(' AND ')}`, params };
 }
 
@@ -385,10 +395,12 @@ export async function listForDashboard(q: DashboardQuery = {}): Promise<any[]> {
     `SELECT m.evaluation_id, c.consultation_code, c.agent_id,
             COALESCE(a.agent_name, c.agent_id) AS agent_name,
             c.consulted_at, m.consult_type_ai, m.recommend_type, m.final_score,
-            m.risk_flagged, m.status_label, m.evaluated_at
+            m.risk_flagged, m.status_label, m.evaluated_at,
+            COALESCE(r.review_status, '미검수') AS review_status
        FROM ai_evaluation_master m
        JOIN consultation_master c ON c.consultation_id = m.consultation_id
        LEFT JOIN agents a ON a.agent_id = c.agent_id
+       LEFT JOIN evaluation_reviews r ON r.evaluation_id = m.evaluation_id
        ${where.sql}
       ORDER BY ${orderBy}
       LIMIT ? OFFSET ?`,
@@ -417,6 +429,7 @@ export async function countForDashboard(q: DashboardQuery = {}): Promise<{
       `SELECT COUNT(*) AS filtered_count
          FROM ai_evaluation_master m
          JOIN consultation_master c ON c.consultation_id = m.consultation_id
+         LEFT JOIN evaluation_reviews r ON r.evaluation_id = m.evaluation_id
         ${where.sql}`,
       where.params,
     ),

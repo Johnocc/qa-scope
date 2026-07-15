@@ -69,6 +69,19 @@ export default function FilterBar({
         </select>
       </div>
       <div>
+        <label className="mb-1 block text-xs text-sub">검수상태</label>
+        <select
+          name="review_status"
+          defaultValue={searchParams.review_status ?? ''}
+          className="rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
+        >
+          <option value="">전체</option>
+          <option value="미검수">미검수</option>
+          <option value="검수중">검수중</option>
+          <option value="확정">확정</option>
+        </select>
+      </div>
+      <div>
         <label className="mb-1 block text-xs text-sub">정렬</label>
         <select
           name="sort"

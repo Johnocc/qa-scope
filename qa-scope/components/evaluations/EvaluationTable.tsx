@@ -4,6 +4,12 @@ import StatusBadge from '../common/StatusBadge';
 import EmptyState from '../common/EmptyState';
 import type { EvaluationListItem } from '@/lib/types/evaluation';
 
+const REVIEW_STATUS_STYLE: Record<string, string> = {
+  '미검수': 'bg-na-bg text-na-text border border-border',
+  '검수중': 'bg-warn-bg text-warn-text border border-warn-border',
+  '확정':   'bg-ok-bg text-ok-text border border-ok-border',
+};
+
 export default function EvaluationTable({ items }: { items: EvaluationListItem[] }) {
   if (items.length === 0) {
     return <EmptyState message="조건에 맞는 상담이 없습니다" />;
@@ -19,6 +25,7 @@ export default function EvaluationTable({ items }: { items: EvaluationListItem[]
           <th className="px-4 py-2 text-left font-medium">상담일</th>
           <th className="px-4 py-2 text-right font-medium">총점</th>
           <th className="px-4 py-2 text-left font-medium">상태</th>
+          <th className="px-4 py-2 text-left font-medium">검수</th>
           <th className="px-4 py-2" />
         </tr>
       </thead>
@@ -38,6 +45,11 @@ export default function EvaluationTable({ items }: { items: EvaluationListItem[]
                 <RiskDot active={item.risk_flagged} />
                 <StatusBadge labels={item.status_labels} />
               </div>
+            </td>
+            <td className="px-4 py-2.5">
+              <span className={`rounded-pill px-2.5 py-0.5 text-xs font-medium ${REVIEW_STATUS_STYLE[item.review_status] ?? 'bg-na-bg text-na-text'}`}>
+                {item.review_status}
+              </span>
             </td>
             <td className="px-4 py-2.5 text-right">
               <Link

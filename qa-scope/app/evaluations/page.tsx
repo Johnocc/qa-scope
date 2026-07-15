@@ -15,6 +15,7 @@ export default async function EvaluationsPage({
     agent_id: sp.agent_id,
     consult_type: sp.consult_type,
     status: sp.status,
+    review_status: sp.review_status,
     sort: (sp.sort as 'risk' | 'date') ?? 'risk',
     limit: 50,
     offset: 0,

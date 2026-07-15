@@ -25,6 +25,7 @@ export interface EvaluationListItem {
   risk_flagged: boolean;
   status_label: string;
   status_labels: string[];
+  review_status: '미검수' | '검수중' | '확정';
 }
 
 export interface EvaluationsListResponse {
@@ -35,6 +36,7 @@ export interface EvaluationsListResponse {
       agent_id: string | null;
       consult_type: string | null;
       status: string | null;
+      review_status: string | null;
     };
     sort: 'risk' | 'date';
     limit: number;
@@ -55,6 +57,7 @@ export interface EvaluationsQueryParams {
   agent_id?: string;
   consult_type?: string;
   status?: string;
+  review_status?: string;
   sort?: 'risk' | 'date';
   limit?: number;
   offset?: number;
