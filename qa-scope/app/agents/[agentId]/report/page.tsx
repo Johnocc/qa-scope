@@ -64,17 +64,17 @@ export default async function AgentReportPage({
         <div className="grid grid-cols-4 gap-4 px-6 py-4">
           <div className="rounded-card border border-border bg-surface-card p-4">
             <div className="text-xs text-sub">채점 건수</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{report.summary.evaluation_count}</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums">{report.summary.evaluation_count}</div>
           </div>
           <div className="rounded-card border border-border bg-surface-card p-4">
             <div className="text-xs text-sub">평균 점수</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">
+            <div className="mt-1 text-3xl font-bold tabular-nums">
               {report.summary.avg_score !== null ? report.summary.avg_score.toFixed(1) : '—'}
             </div>
           </div>
           <div className="rounded-card border border-border bg-surface-card p-4">
             <div className="text-xs text-sub">위험 건</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-danger-text">{report.summary.risk_count}</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums text-danger-text">{report.summary.risk_count}</div>
           </div>
           <div className="rounded-card border border-border bg-surface-card p-4">
             <div className="text-xs text-sub">약점 영역</div>
@@ -103,6 +103,7 @@ export default async function AgentReportPage({
 
         <div id="item-detail" className="px-6 py-4">
           <div className="overflow-hidden rounded-card border border-border bg-surface-card">
+            <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">항목별 상세 점수</div>
             <ItemDetailTable items={report.items} />
           </div>
         </div>

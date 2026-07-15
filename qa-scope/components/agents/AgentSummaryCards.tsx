@@ -13,7 +13,7 @@ export default function AgentSummaryCards({ summary }: { summary: AgentsSummaryR
       {cards.map((c) => (
         <div key={c.label} className="rounded-card border border-border bg-surface-card p-4">
           <div className="text-xs text-sub">{c.label}</div>
-          <div className="mt-1 text-2xl font-semibold tabular-nums">{c.value}</div>
+          <div className="mt-1 text-3xl font-bold tabular-nums">{c.value}</div>
         </div>
       ))}
     </div>

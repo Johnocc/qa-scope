@@ -54,7 +54,7 @@ export default async function EvaluationDetailPage({
         <span className="text-sm text-sub">{header.consult_type ?? '—'}</span>
         <RiskDot active={displayRisk} />
         <StatusBadge labels={displayLabels} />
-        <span className="ml-auto text-lg font-semibold tabular-nums">{displayScore.toFixed(1)}점</span>
+        <span className="ml-auto text-2xl font-bold tabular-nums">{displayScore.toFixed(1)}점</span>
       </div>
       <div className="grid grid-cols-2">
         <div className="max-h-[calc(100vh-9rem)] overflow-y-auto border-r border-border">

@@ -39,7 +39,7 @@ export default function EvaluationTable({ items }: { items: EvaluationListItem[]
             <td className="px-4 py-2.5">{item.agent_name}</td>
             <td className="px-4 py-2.5">{item.consult_type ?? '—'}</td>
             <td className="px-4 py-2.5 text-sub">{item.consulted_at}</td>
-            <td className="px-4 py-2.5 text-right tabular-nums">{item.final_score.toFixed(1)}</td>
+            <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{item.final_score.toFixed(1)}</td>
             <td className="px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <RiskDot active={item.risk_flagged} />
