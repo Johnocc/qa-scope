@@ -58,6 +58,7 @@ export interface EvaluationsQueryParams {
   consult_type?: string;
   status?: string;
   review_status?: string;
+  risk_flagged?: string;
   sort?: 'risk' | 'date';
   limit?: number;
   offset?: number;

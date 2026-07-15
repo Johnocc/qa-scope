@@ -22,6 +22,7 @@ export async function getEvaluations(
   if (params.consult_type) qs.set('consult_type', params.consult_type);
   if (params.status) qs.set('status', params.status);
   if (params.review_status) qs.set('review_status', params.review_status);
+  if (params.risk_flagged) qs.set('risk_flagged', params.risk_flagged);
   qs.set('sort', params.sort ?? 'risk');
   qs.set('limit', String(params.limit ?? 50));
   qs.set('offset', String(params.offset ?? 0));

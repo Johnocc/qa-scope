@@ -82,6 +82,17 @@ export default function FilterBar({
         </select>
       </div>
       <div>
+        <label className="mb-1 block text-xs text-sub">위험</label>
+        <select
+          name="risk_flagged"
+          defaultValue={searchParams.risk_flagged ?? ''}
+          className="rounded-control border border-border bg-surface-card px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
+        >
+          <option value="">전체</option>
+          <option value="true">위험만</option>
+        </select>
+      </div>
+      <div>
         <label className="mb-1 block text-xs text-sub">정렬</label>
         <select
           name="sort"
