@@ -29,16 +29,9 @@ export default function AgentTable({ agents, period }: { agents: AgentSummaryRow
         {agents.map((a) => (
           <tr key={a.agent_id} className="border-t border-border-subtle">
             <td className="px-4 py-2.5">
-              {a.agent_id === 'unknown' ? (
-                <span className="text-sub">{a.agent_name}</span>
-              ) : (
-                <Link
-                  href={`/agents/${a.agent_id}/report?period=${period}`}
-                  className="font-medium text-ink underline decoration-border underline-offset-4 hover:decoration-ink"
-                >
-                  {a.agent_name}
-                </Link>
-              )}
+              <span className={a.agent_id === 'unknown' ? 'text-sub' : 'font-medium text-ink'}>
+                {a.agent_name}
+              </span>
             </td>
             <td className="px-4 py-2.5 text-right tabular-nums">{a.evaluation_count}</td>
             <td className="px-4 py-2.5">
