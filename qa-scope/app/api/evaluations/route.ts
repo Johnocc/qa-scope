@@ -42,6 +42,11 @@ function parseParams(searchParams: URLSearchParams):
     return { ok: false, error: 'invalid review_status' };
   }
 
+  const riskFlagged = searchParams.get('risk_flagged');
+  if (riskFlagged && riskFlagged !== 'true' && riskFlagged !== 'false') {
+    return { ok: false, error: 'invalid risk_flagged' };
+  }
+
   const sort = searchParams.get('sort') ?? 'risk';
   if (sort !== 'risk' && sort !== 'date') {
     return { ok: false, error: 'invalid sort' };
@@ -62,6 +67,7 @@ function parseParams(searchParams: URLSearchParams):
       consultType: consultType || null,
       statusLabel: status || null,
       reviewStatus: (reviewStatus as '미검수' | '검수중' | '확정' | null) || null,
+      riskFlagged: (riskFlagged as 'true' | 'false' | null) || null,
       sort,
       limit,
       offset,
@@ -107,6 +113,7 @@ export async function GET(request: Request) {
           consult_type: q.consultType,
           status: q.statusLabel,
           review_status: q.reviewStatus,
+          risk_flagged: q.riskFlagged,
         },
         sort: q.sort,
         limit: q.limit,

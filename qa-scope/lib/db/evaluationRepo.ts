@@ -62,6 +62,7 @@ export interface DashboardQuery {
   statusLabel?: string | null;
   /** 미검수/검수중/확정. '미검수' 필터 = r.review_status IS NULL */
   reviewStatus?: '미검수' | '검수중' | '확정' | null;
+  riskFlagged?: 'true' | 'false' | null;
   /** 'risk' = 위험·저점 우선(계약 결정 4, 기본) / 'date' = 상담일 최신순 */
   sort?: 'risk' | 'date';
   limit?: number;
@@ -342,6 +343,7 @@ function dashboardWhere({
   consultType = null,
   statusLabel = null,
   reviewStatus = null,
+  riskFlagged = null,
 }: DashboardQuery): { sql: string; params: any[] } {
   const conds: string[] = [`m.evaluator = 'AI_최종'`];
   const params: any[] = [];
@@ -372,6 +374,11 @@ function dashboardWhere({
   } else if (reviewStatus) {
     conds.push('r.review_status = ?');
     params.push(reviewStatus);
+  }
+  if (riskFlagged === 'true') {
+    conds.push('m.risk_flagged = 1');
+  } else if (riskFlagged === 'false') {
+    conds.push('m.risk_flagged = 0');
   }
   return { sql: `WHERE ${conds.join(' AND ')}`, params };
 }
