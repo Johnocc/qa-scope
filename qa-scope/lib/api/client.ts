@@ -22,8 +22,35 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 인입 요청의 쿠키를 그대로 뽑아 내부 API fetch에 전달할 헤더를 만든다.
+ *
+ * 인증(feat/auth) 도입 후 필수: proxy.ts가 /api/*를 전부 잠그는데, SSR에서
+ * 자기 API를 부르는 fetch에는 브라우저 세션 쿠키가 자동으로 실리지 않는다.
+ * 전달하지 않으면 로그인한 사용자의 페이지 렌더조차 내부 401로 전멸한다.
+ *
+ * next/headers는 서버 전용 모듈이라 동적 import를 쓴다 — 이 파일은
+ * ReviewPanel(클라이언트 컴포넌트) → lib/api/evaluations.ts 경유로 클라이언트
+ * 번들에도 딸려 들어가므로, 정적 import를 걸면 클라이언트 빌드가 깨진다.
+ */
+async function buildAuthHeaders(): Promise<Record<string, string>> {
+  if (typeof window !== 'undefined') return {}; // 브라우저는 쿠키 자동 첨부
+  try {
+    const { cookies } = await import('next/headers');
+    const jar = await cookies();
+    const cookie = jar
+      .getAll()
+      .map((c) => `${c.name}=${c.value}`)
+      .join('; ');
+    return cookie ? { cookie } : {};
+  } catch {
+    return {}; // 요청 컨텍스트 밖(스크립트 등) — 쿠키 없이 진행
+  }
+}
+
 export async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, { cache: 'no-store' });
+  const headers = await buildAuthHeaders();
+  const res = await fetch(`${getBaseUrl()}${path}`, { cache: 'no-store', headers });
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new ApiError(body?.error ?? `요청 실패 (${res.status})`, res.status);

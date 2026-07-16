@@ -19,6 +19,7 @@ import * as consultations from './consultationRepo'
 import * as evaluations from './evaluationRepo'
 import * as reviews from './reviewRepo'
 import * as verifyLog from './verifyLogRepo'
+import * as users from './userRepo'
 
 const db = {
   pool,
@@ -31,6 +32,7 @@ const db = {
   evaluations,
   reviews,
   verifyLog,
+  users,
 }
 
 export default db
