@@ -1,4 +1,4 @@
-# 화면① 채점 결과 목록 — API 응답 계약 v1
+# 화면① 채점 결과 목록 — API 응답 계약 v2
 
 > **목적:** 프론트엔드(화면① 목업 → Next.js 이식)와 백엔드(DB 조회)가
 > 서로 기다리지 않고 병렬로 작업하기 위한 **데이터 약속 문서**다.
@@ -48,8 +48,18 @@ GET /api/evaluations?date_from=2026-06-01&date_to=2026-06-30&agent_id=AGT-003&co
 | `agent_id` | query | 명부 ID (예: `AGT-003`) | 없음(전체) | 상담사 필터 |
 | `consult_type` | query | 5종 ENUM (신규·보장 등) | 없음(전체) | AI 판정 상담유형 필터 |
 | `status` | query | `불완전판매 의심` \| `저점수` \| `정상` | 없음(전체) | **DB 저장 단일 라벨**(`status_label`) 기준 필터 |
+| `review_status` | query | `미검수`/`검수중`/`확정` | 없음(전체) | 검수 상태 필터 |
+| `risk_flagged` | query | `true` \| `false` | 없음(전체) | 위험 플래그 필터. `true`=위험 건만 / `false`=비위험 건만 / 미지정·빈 값=전체 |
 | `sort` | query | `risk` \| `date` | `risk` | `risk`=결정 4의 위험·저점 우선 / `date`=상담일 최신순 |
 | `limit` / `offset` | query | number | `50` / `0` | 페이지네이션. `limit` 최대 200 |
+
+- `review_status` 동작 노트: 잘못된 값 → `400` + `{ "error": "invalid review_status" }`. `'미검수'` 필터 = 검수 행(`evaluation_reviews`)이 `NULL`인 것.
+
+- `risk_flagged` 동작 노트:
+  - 허용 값은 문자열 `'true'`/`'false'`. 그 외 값 → `400` + `{ "error": "invalid risk_flagged" }`
+  - 빈 문자열(`risk_flagged=`)은 미지정과 동일 처리 (서버가 `null` 정규화)
+  - 미지정 시 WHERE 조건 미생성 (전체 조회)
+  - UI 노출: 화면① 셀렉트는 "전체 / 위험만(`true`)" 2개만. `false`는 스펙상 지원, 현 UI 미노출
 
 - 성공: `200` + 아래 §3 형태의 JSON
 - 잘못된 파라미터(날짜 형식·미지원 sort 등): `400` + `{ "error": "<메시지>" }`
@@ -64,25 +74,34 @@ GET /api/evaluations?date_from=2026-06-01&date_to=2026-06-30&agent_id=AGT-003&co
 | 응답 블록 | 화면① 요소 |
 |---|---|
 | `meta` | 필터 에코·생성 시각 |
-| `summary` | 하단 요약 줄 ("전량 N건 · 위험 N건 · 표시 중 N건") |
+| `summary` | 하단 요약 줄 ("전체 N건 · 위험 N건" + 필터 시 "· 조회 결과 N건") |
 | `items` | 표 본문 (1행 = 평가 1건) |
 
 ### 3.1 `meta`
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| `filters` | object | 적용된 필터 에코 (`date_from`·`date_to`·`agent_id`·`consult_type`·`status` — 미지정은 `null`) |
+| `filters` | object | 적용된 필터 에코 (`date_from`·`date_to`·`agent_id`·`consult_type`·`status`·`review_status`·`risk_flagged` — 미지정은 `null`) |
 | `sort` | string | 적용된 정렬 (`risk`/`date`) |
 | `limit` / `offset` | number | 페이지네이션 에코 |
 | `generated_at` | string(date-time) | 응답 생성 시각 |
+
+- `risk_flagged` 에코는 문자열 `'true'`/`'false'` 그대로(boolean 변환 없음), 미지정 `null`.
 
 ### 3.2 `summary` — 하단 요약 줄
 
 | 필드 | 타입 | 화면 문구 | 설명 |
 |---|---|---|---|
-| `total_count` | number | "전량 **N**건 채점 완료" | **필터 무관** 전체 평가 건수 (`evaluator='AI_최종'`) |
+| `total_count` | number | "전체 **N**건" | **필터 무관** 전체 평가 건수 (`evaluator='AI_최종'`) |
 | `risk_count` | number | "위험 **N**건" | **필터 무관** 전체 `risk_flagged=true` 건수 |
-| `filtered_count` | number | "표시 중 **N**건 (필터 적용)" | 필터 적용 후 총 건수 (`limit`/`offset` 무관 — 페이지 계산용) |
+| `filtered_count` | number | "조회 결과 **N**건" — **조건부 표시** | 필터 적용 후 총 건수 (`limit`/`offset` 무관 — 페이지 계산용) |
+
+**조건부 표시 규칙 (프론트 정본):**
+"조회 결과" 조각은 `filtered_count !== total_count`이거나 필터 파라미터
+(`date_from`/`date_to`/`agent_id`/`consult_type`/`status`/`review_status`/`risk_flagged`)
+중 하나라도 truthy(빈 문자열 제외)일 때만 표시한다. 필터 미적용 시 요약줄은
+"전체 N건 · 위험 N건" 두 조각만 표시한다. `sort`/`limit`/`offset`은 필터가
+아니므로 활성 판정에서 제외한다.
 
 ### 3.3 `items` — 표 본문 (정렬·페이지 적용 후)
 
@@ -98,6 +117,7 @@ GET /api/evaluations?date_from=2026-06-01&date_to=2026-06-30&agent_id=AGT-003&co
 | `risk_flagged` | boolean | 상태(빨간 점) | `true`면 빨간 점 + 행 배경 `risk-row` |
 | `status_label` | string | — | DB 저장 단일 라벨 (필터 값과 대응 — 표시용은 아래 배열 사용) |
 | `status_labels` | string[] | 상태(배지) | 병기 배열 (결정 2·7). 1~2개, 항상 이 중 하나: `["정상"]` / `["저점수"]` / `["불완전판매 의심"]` / `["불완전판매 의심","저점수"]` |
+| `review_status` | string | 검수(배지) | `미검수`/`검수중`/`확정`. 서버가 `evaluation_reviews` LEFT JOIN 후 판정. 행 없으면 `미검수` |
 
 **`status_labels` 판정 규칙 (서버 계산 — 정본):**
 
@@ -119,6 +139,10 @@ GET /api/evaluations?date_from=2026-06-01&date_to=2026-06-30&agent_id=AGT-003&co
 | 컷값 변경 후 과거 건 | `status_labels`의 저점수 여부는 새 컷 기준으로 재판정됨. `status_label`(저장값)과 어긋날 수 있음 — 정상 동작 (결정 7) |
 | `limit` > 200 | `400` + `{ "error": "limit too large" }` |
 | `date_from` > `date_to` | `400` + `{ "error": "invalid date range" }` |
+| `risk_flagged`에 `true`/`false` 외 값 | `400` + `{ "error": "invalid risk_flagged" }` |
+| `risk_flagged=` (빈 값) | 미지정과 동일 — 전체 조회 |
+| 검수 기록 없는 평가 | `review_status: "미검수"` (LEFT JOIN NULL) |
+| `review_status` 필터 + 결과 0건 | `items: []` → 빈 상태 안내 |
 
 ---
 
@@ -140,3 +164,4 @@ GET /api/evaluations?date_from=2026-06-01&date_to=2026-06-30&agent_id=AGT-003&co
 | 버전 | 일자 | 내용 |
 |---|---|---|
 | v1 | 2026-07-08 | 최초 확정 — meta/summary/items 3블록, 상태 병기 `status_labels` 서버 계산, 위험·저점 우선 정렬, 날짜 기준 consulted_at |
+| v2 | 2026-07-16 | ① risk_flagged 필터 신설 (true/false, 400 검증, meta 에코) ② §3.1 filters 에코 7종으로 갱신 ③ §4 엣지 케이스 2행 추가 ④ 요약줄 개편: "전량→전체", "표시 중→조회 결과", 조회 결과 조각은 필터 활성 시에만 조건부 표시 ⑤ review_status 필터·필드·엣지 케이스는 검수기능 개정안 v2(07-11 기확정)를 본 개정에서 문서 반영 |
