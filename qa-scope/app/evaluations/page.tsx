@@ -22,13 +22,24 @@ export default async function EvaluationsPage({
     offset: 0,
   });
 
+  const filterActive = [
+    sp.date_from,
+    sp.date_to,
+    sp.agent_id,
+    sp.consult_type,
+    sp.status,
+    sp.review_status,
+    sp.risk_flagged,
+  ].some(Boolean);
+  const showFiltered = data.summary.filtered_count !== data.summary.total_count || filterActive;
+
   return (
     <div>
       <FilterBar searchParams={sp} />
       <EvaluationTable items={data.items} />
       <div className="border-t border-border px-6 py-4 text-sm text-sub">
-        전량 {data.summary.total_count}건 채점 완료 · 위험 {data.summary.risk_count}건 · 표시 중{' '}
-        {data.summary.filtered_count}건
+        전체 {data.summary.total_count}건 · 위험 {data.summary.risk_count}건
+        {showFiltered && <> · 조회 결과 {data.summary.filtered_count}건</>}
       </div>
     </div>
   );
