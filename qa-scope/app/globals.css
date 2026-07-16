@@ -7,67 +7,45 @@
  * 라이트가 기본, 다크는 prefers-color-scheme을 따른다. 섹션 단위로 테마를 뒤집지 않는다.
  */
 :root {
-  --surface: #f6f4ee;
-  --surface-card: #ffffff;
-  --surface-muted: #f1efe6;
-  --surface-hover: #ece8db;
-  --border: #e7e2d3;
-  --border-subtle: #efeade;
-  --ink: #26251f;
-  --ink-inverse: #fdfcf8;
-  --sub: #837e70;
+  --surface: #F2F4F7;
+  --surface-card: #FFFFFF;
+  --surface-muted: #E9ECF1;
+  --surface-hover: #E1E5EB;
+  --border: #DADFE6;
+  --border-subtle: #E9ECF1;
+  --ink: #14171F;
+  --ink-inverse: #FFFFFF;
+  --sub: #6B7280;
 
-  --danger-bg: #f8e9e7;
-  --danger-text: #a8433c;
-  --danger-border: #edcfc9;
+  --danger-bg: #FEF2F2;
+  --danger-text: #B91C1C;
+  --danger-border: #FECACA;
 
-  --warn-bg: #f5eedb;
-  --warn-text: #93711f;
-  --warn-border: #e8dab3;
+  --warn-bg: #FFFBEB;
+  --warn-text: #B45309;
+  --warn-border: #FDE68A;
 
-  --ok-bg: #eaf0dd;
-  --ok-text: #5f7239;
-  --ok-border: #d7e2c1;
+  --ok-bg: #F0FDF4;
+  --ok-text: #15803D;
+  --ok-border: #BBF7D0;
 
-  --na-bg: #ece9df;
-  --na-text: #837e70;
+  --na-bg: #F3F4F6;
+  --na-text: #6B7280;
 
-  --target-bg: #f5eedb;
+  --target-bg: #FEF3C7;
+
+  --primary: #1D4ED8;
+  --primary-hover: #1E40AF;
+  --primary-active: #1E3A8A;
+  --highlight: #F59E0B;
+  --chart-primary: #3B82F6;
+  --chart-danger: #EF4444;
+  --chart-warn: #F59E0B;
+  --chart-ok: #22C55E;
 
   --radius-card: 0.875rem;
   --radius-control: 0.5rem;
   --radius-pill: 9999px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface: #1a1916;
-    --surface-card: #221f1b;
-    --surface-muted: #29261f;
-    --surface-hover: #322e25;
-    --border: #3a362c;
-    --border-subtle: #2c2921;
-    --ink: #f2efe6;
-    --ink-inverse: #201e19;
-    --sub: #a39c8a;
-
-    --danger-bg: #3a2420;
-    --danger-text: #f0a99b;
-    --danger-border: #5c342d;
-
-    --warn-bg: #3a3120;
-    --warn-text: #e4c477;
-    --warn-border: #5c4c2c;
-
-    --ok-bg: #232b1b;
-    --ok-text: #b7c98d;
-    --ok-border: #3a4a2a;
-
-    --na-bg: #2c2921;
-    --na-text: #a39c8a;
-
-    --target-bg: #4a3d1e;
-  }
 }
 
 @theme inline {
@@ -93,23 +71,45 @@
   --color-na-bg: var(--na-bg);
   --color-na-text: var(--na-text);
 
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-highlight: var(--highlight);
+  --color-chart-primary: var(--chart-primary);
+  --color-chart-danger: var(--chart-danger);
+  --color-chart-warn: var(--chart-warn);
+  --color-chart-ok: var(--chart-ok);
+
   --radius-card: var(--radius-card);
   --radius-control: var(--radius-control);
   --radius-pill: var(--radius-pill);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
-    "Malgun Gothic", sans-serif;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Segoe UI", "Malgun Gothic", sans-serif;
 }
 
 body {
   background: var(--surface);
   color: var(--ink);
   font-family: var(--font-sans);
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* 화면② "항목 클릭 → 원문 점프": 앵커 이동 후 대상 발화의 말풍선을 강조 (JS 불필요) */
 :target .bubble {
   background-color: var(--target-bg);
+}
+
+/*
+ * 카드 부양감 — 전용 Card 컴포넌트/클래스가 없고 rounded-card + bg-surface-card
+ * 조합이 각 파일에 반복돼 있어(ItemScorePanel·AgentSummaryCards·agent-report 등),
+ * 이 조합에 한 번에 적용되는 지점을 여기 CSS로 만든다. 말풍선(.bubble)은
+ * rounded-card를 공유하지만 카드가 아니므로 제외.
+ */
+.rounded-card.bg-surface-card:not(.bubble) {
+  border-color: var(--border-subtle);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -143,5 +143,13 @@ body {
 }
 
 ::-webkit-scrollbar-button {
+  display: none;
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
