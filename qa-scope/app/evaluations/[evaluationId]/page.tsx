@@ -6,7 +6,7 @@ import DialogueList from '@/components/evaluation-detail/DialogueList';
 import ItemScorePanel from '@/components/evaluation-detail/ItemScorePanel';
 import ReviewPanel from '@/components/evaluation-detail/ReviewPanel';
 import SaleInfoPanel from '@/components/evaluation-detail/SaleInfoPanel';
-import StatusBadge from '@/components/common/StatusBadge';
+import SummaryPanel from '@/components/evaluation-detail/SummaryPanel';
 import RiskDot from '@/components/common/RiskDot';
 
 export default async function EvaluationDetailPage({
@@ -35,32 +35,39 @@ export default async function EvaluationDetailPage({
   const displayRisk = review?.effective.risk_flagged ?? header.risk_flagged;
 
   return (
-    <div>
+    <div className="flex h-[calc(100vh-5.1875rem)] flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b border-border bg-surface-card px-6 py-4">
-        <Link href="/evaluations" className="text-sm text-sub hover:text-ink hover:underline">
-          ← 목록으로
+        <Link
+          href="/evaluations"
+          className="flex items-center gap-1 rounded-control border border-border bg-surface-card px-2.5 py-1 text-sm text-sub hover:bg-surface-hover hover:text-ink"
+        >
+          ← 목록
         </Link>
         <h2 className="text-base font-semibold">{header.consultation_code}</h2>
-        {header.agent_id && header.agent_id !== 'unknown' ? (
-          <Link
-            href={`/agents/${header.agent_id}/report`}
-            className="text-sm text-sub underline decoration-border underline-offset-4 hover:text-ink hover:decoration-ink"
-          >
-            {header.agent_name || header.agent_id}
-          </Link>
-        ) : (
-          <span className="text-sm text-sub">{header.agent_name || '상담사 정보 없음'}</span>
-        )}
-        <span className="text-sm text-sub">{header.consult_type ?? '—'}</span>
-        <RiskDot active={displayRisk} />
-        <StatusBadge labels={displayLabels} />
-        <span className="ml-auto text-2xl font-bold tabular-nums">{displayScore.toFixed(1)}점</span>
+        <div className="flex items-center gap-3 border-l border-border pl-3">
+          {header.agent_id && header.agent_id !== 'unknown' ? (
+            <>
+              <span className="text-sm text-sub">{header.agent_name || header.agent_id}</span>
+              <Link
+                href={`/agents/${header.agent_id}/report`}
+                className="rounded-control border border-border px-2.5 py-1 text-xs font-medium text-ink hover:bg-surface-hover"
+              >
+                리포트 보기
+              </Link>
+            </>
+          ) : (
+            <span className="text-sm text-sub">{header.agent_name || '상담사 정보 없음'}</span>
+          )}
+          <span className="text-sm text-sub">{header.consult_type ?? '—'}</span>
+          <RiskDot active={displayRisk} />
+        </div>
       </div>
-      <div className="grid grid-cols-2">
-        <div className="max-h-[calc(100vh-9rem)] overflow-y-auto border-r border-border">
+      <div className="grid min-h-0 flex-1 grid-cols-2">
+        <div className="h-full overflow-y-auto border-r border-border scrollbar-hidden">
           <DialogueList dialogues={dialogues} />
         </div>
-        <div className="max-h-[calc(100vh-9rem)] overflow-y-auto">
+        <div className="h-full overflow-y-auto">
+          <SummaryPanel items={evaluation.항목평가} score={displayScore} labels={displayLabels} />
           {evaluation.판매정보 && <SaleInfoPanel saleInfo={evaluation.판매정보} />}
           <ItemScorePanel items={evaluation.항목평가} />
         </div>

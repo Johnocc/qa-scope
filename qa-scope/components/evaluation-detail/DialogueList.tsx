@@ -41,7 +41,7 @@ export default function DialogueList({ dialogues }: { dialogues: DialogueTurn[] 
             className={`scroll-mt-4 flex flex-col gap-0.5 px-1 py-1 ${isCustomer ? 'items-start' : 'items-end'}`}
           >
             <span className="text-xs text-sub">{d.speaker}</span>
-            <div className={`flex items-end gap-2 ${isCustomer ? 'justify-start' : 'justify-end'}`}>
+            <div className={`flex w-full items-end gap-2 ${isCustomer ? 'justify-start' : 'justify-end'}`}>
               {isCustomer ? (
                 <>
                   {bubble}

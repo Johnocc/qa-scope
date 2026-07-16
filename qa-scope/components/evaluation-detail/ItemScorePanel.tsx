@@ -27,7 +27,7 @@ export default function ItemScorePanel({ items }: { items: EvaluationItemScore[]
           const hasNote = it.충족수준 === '해당없음' || firstJumpable || it.근거.length > 0 || it.코멘트;
 
           return (
-            <div key={code}>
+            <div key={code} id={`item-${code}`} className="scroll-mt-4">
               {showDomainHeader && (
                 <div className="px-1 pb-1 pt-2 text-xs font-semibold text-sub">
                   {domain}. {DOMAIN_NAMES[domain]}
