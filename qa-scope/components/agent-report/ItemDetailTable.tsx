@@ -16,7 +16,7 @@ export default function ItemDetailTable({ items }: { items: AgentReportItem[] })
       <thead className="bg-surface-muted text-sm uppercase tracking-wide text-sub">
         <tr>
           <th className="px-4 py-2.5 text-left font-medium">항목</th>
-          <th className="px-4 py-2.5 text-left font-medium">달성률</th>
+          <th className="px-4 py-2.5 text-left font-medium">달성률(평균)</th>
           <th className="px-4 py-2.5 text-left font-medium">상태</th>
           <th className="px-4 py-2.5 text-right font-medium">적용 건수</th>
         </tr>

@@ -103,7 +103,7 @@ export default async function AgentReportPage({
 
         <div id="item-detail" className="px-6 py-4">
           <div className="overflow-hidden rounded-card border border-border bg-surface-card">
-            <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">항목별 상세 점수</div>
+            <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">항목별 달성률 — 기간 평균</div>
             <ItemDetailTable items={report.items} />
           </div>
         </div>
