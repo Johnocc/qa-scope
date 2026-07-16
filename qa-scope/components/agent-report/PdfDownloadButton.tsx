@@ -28,7 +28,7 @@ export default function PdfDownloadButton({ targetId, fileName }: { targetId: st
     <button
       onClick={handleClick}
       disabled={loading}
-      className="rounded-control bg-ink px-4 py-1.5 text-sm font-medium text-ink-inverse hover:opacity-90 disabled:opacity-50"
+      className="rounded-control bg-primary px-4 py-1.5 text-sm font-medium text-ink-inverse transition-colors hover:bg-primary-hover disabled:opacity-50"
     >
       {loading ? '생성 중...' : 'PDF 다운로드'}
     </button>

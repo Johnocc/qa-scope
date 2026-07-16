@@ -105,7 +105,7 @@ export default function FilterBar({
       </div>
       <button
         type="submit"
-        className="rounded-control bg-ink px-4 py-1.5 text-sm font-medium text-ink-inverse transition-opacity hover:opacity-90 active:opacity-80"
+        className="rounded-control bg-primary px-4 py-1.5 text-sm font-medium text-ink-inverse transition-colors hover:bg-primary-hover active:bg-primary-active"
       >
         조회
       </button>

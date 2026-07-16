@@ -135,7 +135,7 @@ export default function ReviewPanel({
               <button
                 onClick={() => submit('확정')}
                 disabled={busy}
-                className="rounded-control bg-ink px-3 py-1.5 text-sm text-ink-inverse hover:opacity-90 disabled:opacity-50"
+                className="rounded-control bg-primary px-3 py-1.5 text-sm text-ink-inverse transition-colors hover:bg-primary-hover disabled:opacity-50"
               >
                 {pending === 'confirm' ? '확정 중...' : '검수확정'}
               </button>

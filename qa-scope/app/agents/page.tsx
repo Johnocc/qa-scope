@@ -28,7 +28,7 @@ export default async function AgentsPage({
             href={`/agents?period=${p.value}`}
             className={`rounded-control px-3 py-1.5 text-sm transition-colors ${
               period === p.value
-                ? 'bg-ink text-ink-inverse'
+                ? 'bg-primary text-ink-inverse'
                 : 'bg-surface-muted text-sub hover:bg-surface-hover hover:text-ink'
             }`}
           >
