@@ -218,7 +218,7 @@ GET /api/agents/{agent_id}/report?period=30d
       `lib/db/agentReportRepo.ts`(집계·리포트 빌더) +
       `app/api/agents/[agentId]/report/route.ts`. 시드 데이터로 통합 검증 완료)
 - [x] 코칭 팁 정적 문구 18개 확정 (2026-07-16 전량 등록 — 정본: 코칭팁_문구_확정본_20260716.md,
-      커밋 efcdb62. D1·D2·D4 기존 목업 초안 문구는 전량 교체)
+      커밋 aa8e4d1. D1·D2·D4 기존 목업 초안 문구는 전량 교체)
 - [x] 화면③(대시보드)용 API 계약은 별도 문서로 (2026-07-08 완료 —
       `화면3_상담사대시보드_API계약_v1.md`. 화면①·②용도 같은 날 확정:
       `화면1_채점결과목록_API계약_v1.md` / `화면2_채점상세_API계약_v1.md`)
