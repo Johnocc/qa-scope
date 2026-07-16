@@ -119,3 +119,29 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* 커스텀 스크롤바 — 얇게, 화살표 버튼 없이 */
+* {
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sub);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}

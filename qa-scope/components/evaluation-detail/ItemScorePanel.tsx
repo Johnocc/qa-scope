@@ -13,9 +13,9 @@ export default function ItemScorePanel({ items }: { items: EvaluationItemScore[]
   let currentDomain = '';
 
   return (
-    <div>
+    <div className="bg-surface-muted">
       <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">항목별 상세 점수</div>
-      <div className="divide-y divide-border-subtle">
+      <div className="space-y-2.5 p-4">
         {ITEM_CODES.map((code) => {
           const it = byCode.get(code);
           if (!it) return null;
@@ -24,36 +24,43 @@ export default function ItemScorePanel({ items }: { items: EvaluationItemScore[]
           currentDomain = domain;
           // 근거가 여러 개면 첫 근거로 점프, 나머지는 목록 표시 (계약 §4-2)
           const firstJumpable = it.근거.find((e) => e.dialogue_id !== null);
+          const hasNote = it.충족수준 === '해당없음' || firstJumpable || it.근거.length > 0 || it.코멘트;
 
           return (
             <div key={code}>
               {showDomainHeader && (
-                <div className="px-4 pt-3 pb-1 text-xs font-semibold text-sub">
+                <div className="px-1 pb-1 pt-2 text-xs font-semibold text-sub">
                   {domain}. {DOMAIN_NAMES[domain]}
                 </div>
               )}
-              <div className="px-4 py-2.5">
+              <div className="rounded-card border border-border bg-surface-card p-3.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">
-                    {code}. {ITEM_NAMES[code as ItemCode]}
-                  </span>
-                  <span className={`shrink-0 rounded-pill px-2.5 py-0.5 text-xs font-medium ${LEVEL_STYLE[it.충족수준]}`}>
-                    {it.충족수준}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {code}. {ITEM_NAMES[code as ItemCode]}
+                    </span>
+                    <span className={`shrink-0 rounded-pill px-2.5 py-0.5 text-xs font-medium ${LEVEL_STYLE[it.충족수준]}`}>
+                      {it.충족수준}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-base font-bold tabular-nums">
+                    {it.획득점수} / {it.배점}점
                   </span>
                 </div>
-                <div className="mt-1 text-xs text-sub">
-                  {it.획득점수} / {it.배점}점
-                  {it.충족수준 === '해당없음' ? (
-                    <span className="ml-2">해당없음(N/A)이라 근거 발화가 없습니다</span>
-                  ) : firstJumpable ? (
-                    <a href={`#d-${firstJumpable.dialogue_id}`} className="ml-2 text-ink underline decoration-border underline-offset-2 hover:decoration-ink">
-                      근거 발화 보기 →
-                    </a>
-                  ) : it.근거.length > 0 ? (
-                    <span className="ml-2 text-sub">(인용 대조 실패 — 원문에서 못 찾음)</span>
-                  ) : null}
-                </div>
-                {it.코멘트 && <p className="mt-1 text-xs text-sub">{it.코멘트}</p>}
+                {hasNote && (
+                  <div className="mt-2 space-y-1.5 rounded-control bg-surface-muted px-3 py-2 text-xs text-sub">
+                    {it.코멘트 && <p>{it.코멘트}</p>}
+                    {it.충족수준 === '해당없음' ? (
+                      <p>해당없음(N/A)이라 근거 발화가 없습니다</p>
+                    ) : firstJumpable ? (
+                      <a href={`#d-${firstJumpable.dialogue_id}`} className="text-ink underline decoration-border underline-offset-2 hover:decoration-ink">
+                        근거 발화 보기 →
+                      </a>
+                    ) : it.근거.length > 0 ? (
+                      <p>(인용 대조 실패 — 원문에서 못 찾음)</p>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
           );
