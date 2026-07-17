@@ -8,14 +8,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const MENU = [{ href: '/admin', label: '저점수 컷' }];
+const MENU = [
+  { href: '/admin', label: '저점수 컷' },
+  { href: '/admin/coaching-tips', label: '코칭 팁' },
+];
 
 export default function AdminNav() {
   const pathname = usePathname();
   return (
     <nav className="space-y-1">
       {MENU.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = pathname === item.href;
         return (
           <Link
             key={item.href}
