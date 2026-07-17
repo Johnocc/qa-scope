@@ -14,6 +14,7 @@
 import { query } from './pool'
 import * as configRepo from './configRepo'
 import { getAgent } from './agentRepo'
+import { getAllTips } from './coachingTipsRepo'
 import { MAX_SCORES, ITEM_CODES, type ItemCode } from '../scoring/constants'
 
 // ---------------------------------------------------------------------
@@ -105,32 +106,6 @@ export function selectWeakDomain(
     domain_name: DOMAIN_NAMES[worst.domain_code],
     label: WEAK_LABELS[worst.domain_code],
   }
-}
-
-/**
- * 개선 필요 항목 코칭 팁 (계약 §3.5 — 항목코드별 정적 문구).
- * 18개 전 항목 확정 (2026-07-16, 정본: 코칭팁_문구_확정본_20260716.md).
- * Partial 타입과 소비 지점의 `?? null` 폴백은 계약 §3.5의 null 계약 보존을 위해 유지.
- */
-const COACHING_TIPS: Partial<Record<ItemCode, string>> = {
-  A1: "첫인사에서 '한빛생명 상담사 ○○○입니다'처럼 소속·직함·이름을 함께 밝히세요. 직함(상담사)이 빠지면 감점 대상입니다.",
-  A2: '상담을 진행하기 전에 성명·생년월일 등으로 본인확인 절차를 먼저 수행하세요.',
-  A3: '고객의 용건과 핵심 니즈를 정확히 파악하세요. 불분명하면 되물어서라도 확인하는 것이 좋습니다.',
-  B1: '상품·약관·절차 정보는 참조 문서와 일치하게 안내하세요. 확신이 없으면 추측하지 말고, 확인 후 다시 안내드리겠다고 약속하는 것이 정답입니다.',
-  B2: '해지환급금·면책기간 같은 전문용어를 사용할 때는 바로 이어서 풀어 설명하세요.',
-  B3: "'안 됩니다'에서 끝내지 말고, 가능한 대안이나 고객이 취할 수 있는 다음 단계를 함께 제시하세요.",
-  B4: '통화 보류가 필요하면 반드시 사전에 양해를 구하고, 이미 안내한 내용을 불필요하게 반복하지 않도록 하세요.',
-  C1: '고객이 상황이나 감정을 이야기하면 적절한 시점에 공감을 표현하세요. 단순한 맞장구보다는 고객의 상황을 구체적으로 짚는 공감 멘트가 좋습니다.',
-  C2: '경어를 일관되게 사용하고, 부정적이거나 명령형 표현은 피하세요. 고객 호칭도 상황에 맞게 사용하세요.',
-  C3: '고객이 불만이나 화난 감정을 표출하면 사과→공감→해결 순서로 대응하세요. 맞대응하거나 방어적인 태도를 보이지 않도록 주의하세요.',
-  D1: '상품을 권유할 때는 보장내용·보험료·보험기간·해지환급금(원금 손실 가능성) 4가지를 빠짐없이 설명하세요. 보장내용은 진단비·수술비 같은 세부 범주까지 안내해야 합니다.',
-  D2: '상품을 권유하기 전에 고객의 가입목적·재정상황·기존계약 3가지를 확인하고, 확인한 내용에 맞는 상품을 권유하세요.',
-  D3: '가입 상담 시 계약자의 고지의무(병력 등)와 위반 시 불이익(계약 해지·보험금 부지급 가능성)을 함께 안내하세요.',
-  D4: "보험금이 지급되지 않는 경우(면책기간·부지급 사유)를 설명하세요. '별로 신경 안 쓰셔도 돼요'처럼 중요성을 축소하는 표현은 피해야 합니다.",
-  D5: '청약 시 청약철회 가능 기간과 해피콜 절차를 안내하세요.',
-  D6: "'무조건', '원금 보장', '손해 없다' 같은 단정적·과장 표현은 사용하지 마세요. 기존 계약을 해지시키고 갈아타게 하는 승환 권유 강요도 금지 대상입니다.",
-  E1: "상담을 마치기 전에 처리 내용을 요약해 드리고, '더 궁금하신 점 없으실까요?'처럼 고객의 이해 여부를 확인하세요.",
-  E2: "추가 문의가 가능한 채널(고객센터, 홈페이지 채팅 등)을 특정해서 안내하고, 정중한 종료 인사로 마무리하세요. '연락 주세요'처럼 채널 없이 끝내면 부족합니다.",
 }
 
 // ---------------------------------------------------------------------
@@ -322,10 +297,11 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
   }
 
   const fromDate = periodFromDate(period)
-  const [stats, domainRows, itemRows] = await Promise.all([
+  const [stats, domainRows, itemRows, tips] = await Promise.all([
     fetchSummaryStats(agentId, fromDate),
     fetchDomainRates(agentId, fromDate),
     fetchItemStats(agentId, fromDate),
+    getAllTips(),
   ])
 
   // ---- domain_rates (항상 5개, A→E — 계약 §3.3. v1.2: 본인 값만) ----
@@ -380,7 +356,7 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
       item_name: it.item_name,
       domain_code: it.domain_code,
       rate: it.rate!,
-      tip: COACHING_TIPS[it.item_code] ?? null,
+      tip: tips[it.item_code] ?? null,
     }))
 
   // ---- meta ----

@@ -12,6 +12,19 @@ export interface CoachingTip {
   tip_text: string;
 }
 
+/**
+ * 전체 코칭 팁 조회 — { item_code: tip_text } 맵으로 반환.
+ * DB 에러는 그대로 throw한다 (조용히 빈 객체로 폴백하지 않음 — 호출부가 처리).
+ */
+export async function getAllTips(): Promise<Record<string, string>> {
+  const rows = await query<CoachingTip>('SELECT `item_code`, `tip_text` FROM `coaching_tips`');
+  const tips: Record<string, string> = {};
+  for (const row of rows) {
+    tips[row.item_code] = row.tip_text;
+  }
+  return tips;
+}
+
 /** 코칭 팁 upsert — 시드 스크립트용. 이미 있으면 문구만 갱신(재실행 안전). */
 export async function upsertTip(itemCode: ItemCode, tipText: string): Promise<void> {
   await query(
