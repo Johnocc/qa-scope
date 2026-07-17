@@ -10,17 +10,20 @@
  */
 import { query } from './pool';
 
+export type UserRole = 'MANAGER' | 'ADMIN';
+
 export interface UserRecord {
   id: number;
   username: string;
   password_hash: string;
   display_name: string;
+  role: UserRole;
 }
 
 /** 로그인 ID로 계정 1건 조회. 없으면 null. */
 export async function findByUsername(username: string): Promise<UserRecord | null> {
   const rows = await query<UserRecord>(
-    'SELECT `id`, `username`, `password_hash`, `display_name` FROM `users` WHERE `username` = ? LIMIT 1',
+    'SELECT `id`, `username`, `password_hash`, `display_name`, `role` FROM `users` WHERE `username` = ? LIMIT 1',
     [username],
   );
   return rows[0] ?? null;
@@ -34,7 +37,7 @@ export async function upsertUser(
   username: string,
   passwordHash: string,
   displayName: string,
-  role: 'MANAGER' | 'ADMIN',
+  role: UserRole,
 ): Promise<void> {
   await query(
     `INSERT INTO \`users\` (\`username\`, \`password_hash\`, \`display_name\`, \`role\`)

@@ -43,6 +43,7 @@ export default {
       if (user) {
         token.username = user.username;
         token.display_name = user.display_name;
+        token.role = user.role;
       }
       return token;
     },
@@ -51,6 +52,7 @@ export default {
       if (session.user) {
         if (token.username) session.user.username = token.username;
         if (token.display_name) session.user.display_name = token.display_name;
+        if (token.role) session.user.role = token.role;
       }
       return session;
     },

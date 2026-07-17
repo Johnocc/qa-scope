@@ -1,20 +1,23 @@
 /**
  * types/next-auth.d.ts — NextAuth(Auth.js v5) 타입 확장(module augmentation).
- * users 계정의 커스텀 필드(username·display_name)를 User·Session·JWT에 싣기 위함.
+ * users 계정의 커스텀 필드(username·display_name·role)를 User·Session·JWT에 싣기 위함.
  * (auth.ts authorize 반환값 → jwt 콜백 token → session 콜백 session.user 로 전파)
  */
 import type { DefaultSession } from 'next-auth';
+import type { UserRole } from '@/lib/db/userRepo';
 
 declare module 'next-auth' {
   interface Session {
     user: {
       username: string;
       display_name: string;
+      role: UserRole;
     } & DefaultSession['user'];
   }
   interface User {
     username: string;
     display_name: string;
+    role: UserRole;
   }
 }
 
@@ -25,5 +28,6 @@ declare module '@auth/core/jwt' {
   interface JWT {
     username?: string;
     display_name?: string;
+    role?: UserRole;
   }
 }
