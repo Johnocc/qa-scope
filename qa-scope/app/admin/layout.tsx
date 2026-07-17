@@ -9,7 +9,7 @@ import UserMenu from '@/components/auth/UserMenu';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1600px]">
-      <aside className="flex w-56 shrink-0 flex-col justify-between border-r border-border bg-surface-card px-4 py-6">
+      <aside className="sticky top-0 flex h-dvh w-56 shrink-0 flex-col justify-between border-r border-border bg-surface-card px-4 py-6">
         <div>
           <h2 className="mb-4 px-3 text-sm font-semibold text-ink">관리자 콘솔</h2>
           <AdminNav />

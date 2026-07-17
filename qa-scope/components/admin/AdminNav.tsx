@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation';
 const MENU = [
   { href: '/admin', label: '저점수 컷' },
   { href: '/admin/coaching-tips', label: '코칭 팁' },
+  { href: '/admin/policy-documents', label: '약관 문서' },
 ];
 
 export default function AdminNav() {

@@ -12,12 +12,25 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { chunkPolicyText } from '@/lib/rag/chunk';
 import { indexPolicyDocument } from '@/lib/rag/indexPolicy';
-import { insert } from '@/lib/db/policyDocumentRepo';
+import { insert, list } from '@/lib/db/policyDocumentRepo';
 
 // Vercel 함수 시간 상한 — 색인 25초 실측 × 여유
 export const maxDuration = 120;
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+
+export async function GET() {
+  const items = await list();
+
+  // 프론트가 "현재 적용" 배지를 판정할 기준값. 미설정이면 throw(조용한 폴백 금지) —
+  // rag_collection_name이 없다는 건 검색 파이프라인 자체가 이미 깨진 상태다.
+  const activeCollectionName = await db.config.get('rag_collection_name');
+  if (!activeCollectionName) {
+    throw new Error('rag_collection_name 미설정 — app_config 확인 필요');
+  }
+
+  return NextResponse.json({ items, active_collection_name: activeCollectionName });
+}
 
 // "policy_" + YYYYMMDDHHmmss — Chroma 컬렉션명 규칙상 안전한 영숫자·언더스코어만 사용
 function generateCollectionName(): string {
