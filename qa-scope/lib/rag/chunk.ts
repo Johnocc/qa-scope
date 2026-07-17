@@ -25,8 +25,18 @@ const 조시작패턴 = /^\*\*제(\d+조(?:의\d+)?)\s*\(([^)]*)\)\*\*/
  */
 export function chunkPolicy(filePath: string): PolicyChunk[] {
   const raw = readFileSync(filePath, 'utf-8')
+  return chunkPolicyText(raw)
+}
+
+/**
+ * 이미 읽어들인 약관 텍스트를 조 단위 조각 배열로 변환한다.
+ * chunkPolicy(filePath)의 청킹 핵심 로직 — 파일 I/O 없이 문자열만 받는 버전
+ * (indexPolicyDocument처럼 content를 이미 확보한 호출부용).
+ * @param content 약관 전체 텍스트
+ */
+export function chunkPolicyText(content: string): PolicyChunk[] {
   // 윈도우(\r\n)·유닉스(\n) 줄바꿈 모두 대응
-  const lines = raw.split(/\r?\n/)
+  const lines = content.split(/\r?\n/)
 
   const chunks: PolicyChunk[] = []
   let current: { 조항번호: string; 제목: string; 본문줄: string[] } | null = null
