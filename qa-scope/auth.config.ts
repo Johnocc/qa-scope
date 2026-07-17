@@ -14,12 +14,23 @@ import type { NextAuthConfig } from 'next-auth';
 
 const EIGHT_HOURS_SEC = 8 * 60 * 60; // 설계문서 §1-4: JWT 세션 만료 8시간
 
+// secret 미설정 시 조용히 fail-open(잠금 무력화)되는 것을 방지 — 기동 자체를 막는다.
+// (proxy.ts·auth.ts 양쪽이 이 파일을 import하므로 여기 한 곳이면 서버·미들웨어 모두 커버)
+const secret = process.env.NEXTAUTH_SECRET;
+if (!secret) {
+  throw new Error(
+    '[auth] NEXTAUTH_SECRET 미설정 — 인증 잠금이 무력화되므로 기동을 중단합니다. ' +
+    '.env(로컬) 또는 Vercel 환경변수에 NEXTAUTH_SECRET을 설정하세요.'
+  );
+}
+
 export default {
   // 프록시(리버스 프록시·Vercel·Docker) 뒤에서 Host 헤더를 신뢰. 없으면 self-host/
   // 로컬 `next start`에서 UntrustedHost로 세션 검증이 실패(→ 프록시 가드 fail-open,
   // /api/auth/* 500). Vercel은 자동 감지되지만 Docker·로컬을 위해 명시한다.
   // (env AUTH_TRUST_HOST=true 로도 동일 효과)
   trustHost: true,
+  secret,
   // provider 실구현(bcrypt·DB)은 auth.ts에서 주입. 여기선 비워 둔다(edge-safe).
   providers: [],
   // 설계문서 §1-4: DB 세션 테이블 없이 서명된 JWT 쿠키로 세션 유지.
