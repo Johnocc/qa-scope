@@ -19,6 +19,7 @@
 --   3-G. evaluation_review_overrides 항목별 충족수준 수정 (★v5 신설 — AI 원본 불변 레이어)
 --   4.   users                      로그인 계정 (★v6 신설 — NextAuth Credentials 대조 대상)
 --   5.   coaching_tips              코칭 팁 (★v7 신설 — 항목코드별 정적 문구, 관리자 편집 대상)
+--   6.   policy_documents           관리자 업로드 약관 문서 (★v8 신설 — RAG 재색인 이력)
 --
 -- 파이프라인 전제:
 --   * 최종 평가는 상담당 AI 1건만 저장 (검증 통과본). 중간 시도·모니터링 AI의
@@ -79,6 +80,12 @@
 --     테이블로 이전. 이 스키마 단계에서는 테이블·시드만, 조회 코드 교체는 다음 단계.
 --   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
 --     (4. users·v6과 동일 규약 — 별도 ALTER 블록 불요).
+--
+-- v8 변경 (2026-07-18 — 관리자 약관 업로드/RAG 재색인):
+--   * policy_documents 테이블 신설 — 관리자가 업로드한 약관 원문·색인 이력 보관.
+--     활성 컬렉션명은 app_config.rag_collection_name(시드: 'policy_v2')이 정본.
+--   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
+--     (4. users·5. coaching_tips와 동일 규약 — 별도 ALTER 블록 불요).
 -- =====================================================================
 
 -- 클라이언트 문자셋 고정 — docker-entrypoint-initdb.d 등 실행 환경의 로케일과
@@ -518,7 +525,9 @@ VALUES
   ('low_score_cut', '70', '저점수 상태라벨 기준선 (총점 < 값). 7건 소표본 기준이므로 실운영 시 조정 가능'),
   -- ★v3: 화면④ 항목 달성률 상태 컷 (API 계약 v1 §3.1 thresholds — 프론트 하드코딩 금지)
   ('item_rate_warn', '60', '화면④ 항목 달성률: 값 미만이면 "개선 필요"'),
-  ('item_rate_ok',   '80', '화면④ 항목 달성률: 값 이상이면 "양호" (미만~warn 이상은 "보통")')
+  ('item_rate_ok',   '80', '화면④ 항목 달성률: 값 이상이면 "양호" (미만~warn 이상은 "보통")'),
+  -- ★v8: 채점 파이프라인이 참조할 활성 RAG 컬렉션명 — 관리자 재색인 시 갱신 대상
+  ('rag_collection_name', 'policy_v2', '현재 활성 약관 RAG 컬렉션명 (관리자 재색인 시 갱신)')
 ON DUPLICATE KEY UPDATE `config_value` = `config_value`;
 
 -- ---------------------------------------------------------------------
@@ -566,6 +575,28 @@ CREATE TABLE IF NOT EXISTS `coaching_tips` (
   PRIMARY KEY (`item_code`)
 ) ENGINE = InnoDB
   COMMENT = '5. 코칭 팁 — 항목코드별 정적 문구 (관리자 편집 대상)';
+
+-- ---------------------------------------------------------------------
+-- 6. policy_documents — 관리자 업로드 약관 문서 (★v8 신설)
+--    관리자 화면에서 새 약관을 업로드해 RAG 재색인할 때의 원문·이력 보관.
+--    활성 컬렉션명은 app_config.rag_collection_name(정본)이 가리킨다.
+--    CREATE TABLE IF NOT EXISTS 자체가 마이그레이션 (4. users·5. coaching_tips와
+--    동일 규약 — 신설 테이블은 별도 ALTER 블록 불요, 재실행 안전).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `policy_documents` (
+  `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `filename`         VARCHAR(255) NOT NULL
+      COMMENT '업로드 원본 파일명',
+  `content`          MEDIUMTEXT   NOT NULL
+      COMMENT '약관 전체 텍스트 (재색인 시 재사용)',
+  `collection_name`  VARCHAR(100) NOT NULL
+      COMMENT '이 문서가 색인된 Chroma 컬렉션명',
+  `chunk_count`      INT UNSIGNED NOT NULL
+      COMMENT '색인된 조각 수 (collection.count() 결과)',
+  `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE = InnoDB
+  COMMENT = '6. 관리자 업로드 약관 문서 — RAG 재색인 이력';
 
 -- =====================================================================
 -- v3 마이그레이션 — agents FK 전환 (기존 v2 DB 전용, 재실행 안전)
