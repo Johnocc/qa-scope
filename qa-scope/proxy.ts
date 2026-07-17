@@ -25,9 +25,30 @@ import authConfig from './auth.config';
 const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
-  if (req.auth) return; // 인증됨 — 통과
-
   const { pathname, search } = req.nextUrl;
+
+  if (req.auth) {
+    // 역할 완전 분리(B안) — ADMIN은 /admin만, MANAGER는 화면①~④만 (20260718 확정)
+    const role = req.auth.user.role;
+
+    if (role !== 'ADMIN' && pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/evaluations', req.url));
+    }
+
+    if (role === 'ADMIN') {
+      if (pathname.startsWith('/evaluations') || pathname.startsWith('/agents')) {
+        return NextResponse.redirect(new URL('/admin', req.url));
+      }
+      if (pathname.startsWith('/api/evaluations') || pathname.startsWith('/api/agents')) {
+        return NextResponse.json(
+          { error: 'forbidden', message: '권한 없음' },
+          { status: 403 },
+        );
+      }
+    }
+
+    return; // 통과
+  }
 
   // API는 리다이렉트가 아니라 401 (호출부가 HTML 로그인 페이지를 받으면 안 됨).
   if (pathname.startsWith('/api')) {
