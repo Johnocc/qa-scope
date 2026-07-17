@@ -11,6 +11,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed-edge": "tsx scripts/seed-edge-cases.ts",
     "db:seed-user": "tsx scripts/seed-user.ts",
+    "db:seed-coaching-tips": "tsx scripts/seed-coaching-tips.ts",
     "verify:consistency": "tsx scripts/verify-consistency.ts"
   },
   "dependencies": {

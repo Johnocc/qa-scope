@@ -18,6 +18,7 @@
 --   3-F. evaluation_reviews         검수 헤더 (★v5 신설 — 사람 검수: 확정·코멘트·유효 집계)
 --   3-G. evaluation_review_overrides 항목별 충족수준 수정 (★v5 신설 — AI 원본 불변 레이어)
 --   4.   users                      로그인 계정 (★v6 신설 — NextAuth Credentials 대조 대상)
+--   5.   coaching_tips              코칭 팁 (★v7 신설 — 항목코드별 정적 문구, 관리자 편집 대상)
 --
 -- 파이프라인 전제:
 --   * 최종 평가는 상담당 AI 1건만 저장 (검증 통과본). 중간 시도·모니터링 AI의
@@ -71,6 +72,13 @@
 --   * ⚠ 비밀번호는 schema.sql에서 시드하지 않는다 — bcrypt 해시를 env에서 공급
 --     (scripts/seed-user.ts). 평문 하드코딩 금지 (설계문서 §3·§13).
 --   * 정본 계약: docs/db/로그인 설계문서 v1 20260716.md.
+--
+-- v7 변경 (2026-07-18 — 코칭 팁 관리자 편집 기능):
+--   * coaching_tips 테이블 신설 — 기존 lib/db/agentReportRepo.ts의
+--     COACHING_TIPS 상수(18항목 하드코딩)를 관리자 화면에서 편집 가능하게
+--     테이블로 이전. 이 스키마 단계에서는 테이블·시드만, 조회 코드 교체는 다음 단계.
+--   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
+--     (4. users·v6과 동일 규약 — 별도 ALTER 블록 불요).
 -- =====================================================================
 
 -- 클라이언트 문자셋 고정 — docker-entrypoint-initdb.d 등 실행 환경의 로케일과
@@ -539,6 +547,25 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `uq_users_username` (`username`)
 ) ENGINE = InnoDB
   COMMENT = '4. 로그인 계정 — 관리자 발급 인증 계정 (★v6, NextAuth Credentials 대조 대상)';
+
+-- ---------------------------------------------------------------------
+-- 5. coaching_tips — 코칭 팁 (★v7 신설)
+--    화면④ 개선 필요 항목의 항목코드별 정적 문구. 기존에는
+--    lib/db/agentReportRepo.ts의 COACHING_TIPS 상수로 하드코딩돼 있던 것을
+--    관리자 화면에서 편집 가능하게 테이블로 이전 (조회 코드 교체는 다음 단계 —
+--    이 단계에서는 agentReportRepo.ts를 건드리지 않는다).
+--    CREATE TABLE IF NOT EXISTS 자체가 마이그레이션 (4. users와 동일 규약 —
+--    신설 테이블은 별도 ALTER 블록 불요, 재실행 안전).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `coaching_tips` (
+  `item_code`  VARCHAR(4) NOT NULL
+      COMMENT '루브릭 항목 코드 (A1~E2, 18개)',
+  `tip_text`   TEXT       NOT NULL
+      COMMENT '코칭 팁 문구 — 화면④ 개선 필요 항목에 노출',
+  `updated_at` DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`item_code`)
+) ENGINE = InnoDB
+  COMMENT = '5. 코칭 팁 — 항목코드별 정적 문구 (관리자 편집 대상)';
 
 -- =====================================================================
 -- v3 마이그레이션 — agents FK 전환 (기존 v2 DB 전용, 재실행 안전)
