@@ -4,8 +4,10 @@
  *
  * 엔진(스코어링)과 화면은 이 JSON API를 통해서만 대화한다 (CLAUDE.md §7.3) —
  * 그래서 lib/api는 lib/db를 직접 import하지 않고 항상 fetch로 API 라우트를
- * 거친다. 로컬에서 MySQL(docker compose)이 안 떠 있으면 라우트가 500을
- * 반환하는데, 각 lib/api/*.ts의 호출부가 이를 잡아 목업으로 대체한다.
+ * 거친다. 실패(비-2xx, 또는 2xx인데 본문이 유효한 JSON이 아닌 경우)는 조용히
+ * 삼키지 않고 ApiError로 던진다 — 라우트 세그먼트의 error.tsx가 잡아 화면에
+ * 드러낸다 (조용한 목업 폴백 금지 — lib/api/evaluations.ts·agents.ts의 목업
+ * try/catch를 제거한 원칙과 동일, 커밋 66c6af1).
  */
 
 export function getBaseUrl(): string {
@@ -54,6 +56,12 @@ export async function fetchApi<T>(path: string): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new ApiError(body?.error ?? `요청 실패 (${res.status})`, res.status);
+  }
+  if (body === null) {
+    throw new ApiError(
+      `응답이 유효한 JSON이 아닙니다 (${res.status}, ${path})`,
+      res.status,
+    );
   }
   return body as T;
 }
