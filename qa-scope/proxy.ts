@@ -35,6 +35,13 @@ export default auth((req) => {
       return NextResponse.redirect(new URL('/evaluations', req.url));
     }
 
+    if (role !== 'ADMIN' && pathname.startsWith('/api/admin')) {
+      return NextResponse.json(
+        { error: 'forbidden', message: '권한 없음' },
+        { status: 403 },
+      );
+    }
+
     if (role === 'ADMIN') {
       if (pathname.startsWith('/evaluations') || pathname.startsWith('/agents')) {
         return NextResponse.redirect(new URL('/admin', req.url));
