@@ -27,19 +27,21 @@ export async function findByUsername(username: string): Promise<UserRecord | nul
 }
 
 /**
- * 계정 upsert — 시드 스크립트(seed-user.ts)용. 이미 있으면 해시·표시명만 갱신.
+ * 계정 upsert — 시드 스크립트(seed-user.ts)용. 이미 있으면 해시·표시명·role 갱신.
  * password_hash는 반드시 bcrypt 해시여야 한다(호출부 책임 — 여기서 해싱하지 않음).
  */
 export async function upsertUser(
   username: string,
   passwordHash: string,
   displayName: string,
+  role: 'MANAGER' | 'ADMIN',
 ): Promise<void> {
   await query(
-    `INSERT INTO \`users\` (\`username\`, \`password_hash\`, \`display_name\`)
-     VALUES (?, ?, ?)
+    `INSERT INTO \`users\` (\`username\`, \`password_hash\`, \`display_name\`, \`role\`)
+     VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE \`password_hash\` = VALUES(\`password_hash\`),
-                             \`display_name\`  = VALUES(\`display_name\`)`,
-    [username, passwordHash, displayName],
+                             \`display_name\`  = VALUES(\`display_name\`),
+                             \`role\`          = VALUES(\`role\`)`,
+    [username, passwordHash, displayName, role],
   );
 }

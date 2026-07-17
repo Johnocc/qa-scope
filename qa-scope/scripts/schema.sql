@@ -532,6 +532,8 @@ CREATE TABLE IF NOT EXISTS `users` (
       COMMENT 'bcrypt 해시 — 원문 저장 금지(설계문서 §1-5)',
   `display_name`  VARCHAR(64)  NOT NULL
       COMMENT '화면 표시명 (헤더 "OOO님" 등)',
+  `role`          ENUM('MANAGER','ADMIN') NOT NULL DEFAULT 'MANAGER'
+      COMMENT '계정 역할 — MANAGER=QA매니저(채점·검수 운영), ADMIN=관리자(설정·계정 정책, 채점 실행 권한 없음)',
   `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_users_username` (`username`)
@@ -617,6 +619,25 @@ SET @ddl := IF(@stage_has_v5 = 0,
      MODIFY COLUMN `stage` ENUM(''형식검증'',''인용대조'',''교차검증'',''정본교체'',''검수폐기'') NOT NULL
      COMMENT ''①형식검증(스키마·배점 정합) ②인용 원문대조(코드 — 근거 인용문 vs 대화원문) ③내용 교차검증(2차 LLM) / 정본교체=재채점 덮어쓰기로 폐기된 이전 정본 보존(★v4 — candidate_json에 원본 전문) / 검수폐기=재채점·철회로 삭제되는 3-F 검수 보존(★v5 — candidate_json에 검수 전문)''',
   'SELECT ''stage ENUM에 검수폐기 이미 존재 — 건너뜀''');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================================================
+-- v6 마이그레이션 — users 테이블에 role 컬럼 추가 (재실행 안전)
+--   신규 DB는 위 CREATE TABLE에 이미 포함 → no-op.
+--   기존 DB는 CREATE TABLE IF NOT EXISTS가 건너뛰므로 여기서 이행한다.
+-- =====================================================================
+SET @role_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'qa_scope'
+     AND TABLE_NAME = 'users'
+     AND COLUMN_NAME = 'role'
+);
+SET @ddl := IF(@role_exists = 0,
+  'ALTER TABLE `users`
+     ADD COLUMN `role` ENUM(''MANAGER'',''ADMIN'') NOT NULL DEFAULT ''MANAGER''
+     COMMENT ''계정 역할 — MANAGER=QA매니저(채점·검수 운영), ADMIN=관리자(설정·계정 정책, 채점 실행 권한 없음)''
+     AFTER `display_name`',
+  'SELECT ''role 컬럼 이미 존재 — 건너뜀''');
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET SQL_MODE=@OLD_SQL_MODE;
