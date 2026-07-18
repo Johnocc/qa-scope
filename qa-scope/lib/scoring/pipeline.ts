@@ -5,7 +5,6 @@ import { retrieveContext } from '../rag/index'
 import { callLLM } from '../llm/index'
 import { validateOutput } from './validate'
 import { fillItemScores, calcAggregate } from './calculate'
-import { saveResult } from '../db/index'
 import { persistEvaluation } from '../db/persist'
 import type { PersistResult } from '../db/persist'
 import * as configRepo from '../db/configRepo'
@@ -254,8 +253,7 @@ export async function scoreConsultation(
     )
   }
 
-  // 12. 저장 — 로컬 JSON(감사용 백업) + MySQL(조회 정본)
-  await saveResult(final)
+  // 12. 저장 — MySQL (조회 정본)
   const persisted = await persistEvaluation(상담ID, utterances, final, {
     onConfirmedReview: options.onConfirmedReview,
     agentId: options.agentId,
