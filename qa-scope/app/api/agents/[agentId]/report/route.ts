@@ -30,6 +30,7 @@ export async function GET(
 
     return NextResponse.json(report);
   } catch (err: any) {
+    console.error('[agent-report] 조회 실패:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

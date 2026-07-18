@@ -98,7 +98,10 @@ export async function query<T = any>(sql: string, params: any[] = []): Promise<T
       return rows as T[];
     } catch (err) {
       // 죽은 연결은 서버에 닿기 전 실패라 재시도가 안전(중복 실행 위험 없음).
-      if (attempt === 0 && isDeadConnectionError(err)) continue;
+      if (attempt === 0 && isDeadConnectionError(err)) {
+        console.warn('[pool] 죽은 연결 감지 — 재시도:', (err as any)?.code);
+        continue;
+      }
       throw err;
     }
   }
@@ -122,14 +125,20 @@ export async function withTransaction<T>(
     try {
       conn = await pool.getConnection();
     } catch (err) {
-      if (attempt === 0 && isDeadConnectionError(err)) continue;
+      if (attempt === 0 && isDeadConnectionError(err)) {
+        console.warn('[pool] 죽은 연결 감지 — 재시도:', (err as any)?.code);
+        continue;
+      }
       throw err;
     }
     try {
       await conn.beginTransaction();
     } catch (err) {
       conn.release(); // 확보한 연결 반납 후 재시도(아직 트랜잭션 미시작 — 안전)
-      if (attempt === 0 && isDeadConnectionError(err)) continue;
+      if (attempt === 0 && isDeadConnectionError(err)) {
+        console.warn('[pool] 죽은 연결 감지 — 재시도:', (err as any)?.code);
+        continue;
+      }
       throw err;
     }
     // 여기부터는 트랜잭션 본문 — 재시도하지 않는다.
