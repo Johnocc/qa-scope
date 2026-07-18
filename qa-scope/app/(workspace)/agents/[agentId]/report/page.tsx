@@ -5,6 +5,7 @@ import RadarChart from '@/components/agent-report/RadarChart';
 import ItemDetailTable from '@/components/agent-report/ItemDetailTable';
 import ImprovementItems from '@/components/agent-report/ImprovementItems';
 import PdfDownloadButton from '@/components/agent-report/PdfDownloadButton';
+import ReportTabs from '@/components/agent-report/ReportTabs';
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: '30d', label: '최근 30일' },
@@ -60,51 +61,94 @@ export default async function AgentReportPage({
         </div>
       </div>
 
-      <div id="agent-report-body">
-        <div className="grid grid-cols-4 gap-4 px-6 py-4">
-          <div className="rounded-card border border-border bg-surface-card p-4">
-            <div className="text-xs text-sub">채점 건수</div>
-            <div className="mt-1 text-3xl font-bold tabular-nums">{report.summary.evaluation_count}</div>
-          </div>
-          <div className="rounded-card border border-border bg-surface-card p-4">
-            <div className="text-xs text-sub">평균 점수</div>
-            <div className="mt-1 text-3xl font-bold tabular-nums">
-              {report.summary.avg_score !== null ? report.summary.avg_score.toFixed(1) : '—'}
-            </div>
-          </div>
-          <div className="rounded-card border border-border bg-surface-card p-4">
-            <div className="text-xs text-sub">위험 건</div>
-            <div className="mt-1 text-3xl font-bold tabular-nums text-danger-text">{report.summary.risk_count}</div>
-          </div>
-          <div className="rounded-card border border-border bg-surface-card p-4">
-            <div className="text-xs text-sub">약점 영역</div>
-            <div className="mt-1 text-lg font-semibold">
-              {report.summary.weak_domain ? (
-                report.summary.weak_domain.label
-              ) : (
-                <span className="text-sm text-sub">없음</span>
-              )}
-            </div>
+      <div className="grid grid-cols-4 gap-4 px-6 py-4">
+        <div className="rounded-card border border-border bg-surface-card p-4">
+          <div className="text-xs text-sub">채점 건수</div>
+          <div className="mt-1 text-3xl font-bold tabular-nums">{report.summary.evaluation_count}</div>
+        </div>
+        <div className="rounded-card border border-border bg-surface-card p-4">
+          <div className="text-xs text-sub">평균 점수</div>
+          <div className="mt-1 text-3xl font-bold tabular-nums">
+            {report.summary.avg_score !== null ? report.summary.avg_score.toFixed(1) : '—'}
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-4 px-6">
-          <div className="rounded-card border border-border bg-surface-card p-4">
-            <RadarChart domainRates={report.domain_rates} />
-          </div>
-          <div className="rounded-card border border-border bg-surface-card">
-            <div className="border-b border-border-subtle px-4 py-2 text-sm font-medium">개선 필요 항목</div>
-            <ImprovementItems
-              items={report.improvement_items}
-              totalCount={report.improvement_items_total_count}
-            />
+        <div className="rounded-card border border-border bg-surface-card p-4">
+          <div className="text-xs text-sub">위험 건</div>
+          <div className="mt-1 text-3xl font-bold tabular-nums text-danger-text">{report.summary.risk_count}</div>
+        </div>
+        <div className="rounded-card border border-border bg-surface-card p-4">
+          <div className="text-xs text-sub">약점 영역</div>
+          <div className="mt-1 text-lg font-semibold">
+            {report.summary.weak_domain ? (
+              report.summary.weak_domain.label
+            ) : (
+              <span className="text-sm text-sub">없음</span>
+            )}
           </div>
         </div>
+      </div>
 
-        <div id="item-detail" className="px-6 py-4">
-          <div className="overflow-hidden rounded-card border border-border bg-surface-card">
-            <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">항목별 달성률 — 기간 평균</div>
-            <ItemDetailTable items={report.items} />
+      <ReportTabs
+        domainRates={report.domain_rates}
+        improvementItems={report.improvement_items}
+        items={report.items}
+      />
+
+      {/*
+        PDF 캡처 전용 숨김 전체 레이아웃 — 화면에는 보이지 않지만(화면 밖으로
+        위치시킴, display:none 아님) html2canvas가 실제 렌더링된 DOM으로 인식해
+        캡처할 수 있게 유지한다. 탭 UI 도입 이후에도 "PDF는 현행 전체 표시
+        유지" 요구를 지키기 위해 기존(탭 도입 전) 마크업을 내용 변경 없이
+        그대로 복제했다 — 여기 안의 RadarChart/ImprovementItems 호출은 원래
+        page.tsx에 있던 것과 동일한 props(= compact 미지정, 5개 전량)다.
+      */}
+      <div className="pointer-events-none absolute left-[-9999px] top-0 w-[1600px] overflow-hidden" aria-hidden="true">
+        <div id="agent-report-body">
+          <div className="grid grid-cols-4 gap-4 px-6 py-4">
+            <div className="rounded-card border border-border bg-surface-card p-4">
+              <div className="text-xs text-sub">채점 건수</div>
+              <div className="mt-1 text-3xl font-bold tabular-nums">{report.summary.evaluation_count}</div>
+            </div>
+            <div className="rounded-card border border-border bg-surface-card p-4">
+              <div className="text-xs text-sub">평균 점수</div>
+              <div className="mt-1 text-3xl font-bold tabular-nums">
+                {report.summary.avg_score !== null ? report.summary.avg_score.toFixed(1) : '—'}
+              </div>
+            </div>
+            <div className="rounded-card border border-border bg-surface-card p-4">
+              <div className="text-xs text-sub">위험 건</div>
+              <div className="mt-1 text-3xl font-bold tabular-nums text-danger-text">{report.summary.risk_count}</div>
+            </div>
+            <div className="rounded-card border border-border bg-surface-card p-4">
+              <div className="text-xs text-sub">약점 영역</div>
+              <div className="mt-1 text-lg font-semibold">
+                {report.summary.weak_domain ? (
+                  report.summary.weak_domain.label
+                ) : (
+                  <span className="text-sm text-sub">없음</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 px-6">
+            <div className="rounded-card border border-border bg-surface-card p-4">
+              <RadarChart domainRates={report.domain_rates} />
+            </div>
+            <div className="rounded-card border border-border bg-surface-card">
+              <div className="border-b border-border-subtle px-4 py-2 text-sm font-medium">개선 필요 항목</div>
+              <ImprovementItems
+                items={report.improvement_items}
+                totalCount={report.improvement_items_total_count}
+              />
+            </div>
+          </div>
+
+          <div id="item-detail" className="px-6 py-4">
+            <div className="overflow-hidden rounded-card border border-border bg-surface-card">
+              <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">항목별 달성률 — 기간 평균</div>
+              <ItemDetailTable items={report.items} />
+            </div>
           </div>
         </div>
       </div>

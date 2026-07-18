@@ -11,7 +11,19 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, 
  * 코칭 도구 철학). rate: null인 영역은 0으로 그리지 않는다 — Chart.js는
  * null을 주면 그 꼭짓점을 비워서 그린다(계약 §3.3 주석).
  */
-export default function RadarChart({ domainRates }: { domainRates: DomainRate[] }) {
+/**
+ * compact: 화면④ 요약 탭처럼 고정 높이 컨테이너 안에 축소해 넣을 때 true.
+ * 기본값(false)에서는 기존 동작(= maintainAspectRatio 기본값 true)과 동일하다 —
+ * PDF 캡처용 숨김 전체 레이아웃(page.tsx)이 이 컴포넌트를 인자 없이 그대로
+ * 재사용하므로, 기본 동작은 절대 바뀌면 안 된다.
+ */
+export default function RadarChart({
+  domainRates,
+  compact = false,
+}: {
+  domainRates: DomainRate[];
+  compact?: boolean;
+}) {
   const data = {
     labels: domainRates.map((d) => `${d.domain_code}. ${d.domain_name}`),
     datasets: [
@@ -26,10 +38,11 @@ export default function RadarChart({ domainRates }: { domainRates: DomainRate[] 
     ],
   };
 
-  return (
+  const chart = (
     <Radar
       data={data}
       options={{
+        maintainAspectRatio: !compact,
         scales: {
           r: {
             min: 0,
@@ -44,4 +57,7 @@ export default function RadarChart({ domainRates }: { domainRates: DomainRate[] 
       }}
     />
   );
+
+  if (!compact) return chart;
+  return <div className="relative h-full">{chart}</div>;
 }
