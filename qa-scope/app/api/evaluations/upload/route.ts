@@ -165,6 +165,8 @@ export async function POST(request: Request) {
       unmatched_quotes: unmatchedQuoteCount,
     });
   } catch (err) {
+    // Vercel 로그에 스택트레이스가 남도록 err 객체 전체를 넘긴다(message만 추출 금지).
+    console.error('[upload] 채점 처리 실패:', err);
     // B안: 상담 행만 커밋되고 평가 저장이 실패했을 수 있는 반쪽 상태를
     // 조용히 숨기지 않는다 — 생성된 상담코드를 항상 응답에 명시.
     return NextResponse.json(
