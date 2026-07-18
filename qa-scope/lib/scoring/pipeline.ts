@@ -7,6 +7,7 @@ import { validateOutput } from './validate'
 import { fillItemScores, calcAggregate } from './calculate'
 import { saveResult } from '../db/index'
 import { persistEvaluation } from '../db/persist'
+import type { PersistResult } from '../db/persist'
 import * as configRepo from '../db/configRepo'
 import type { EvalOutput } from './types'
 
@@ -53,6 +54,24 @@ export interface ScoreOptions {
    * 배치는 채점 시작 전 reviewRepo.hasConfirmedReview()로 먼저 거를 것.
    */
   onConfirmedReview?: 'skip' | 'force'
+  /**
+   * 신규 상담 메타 — 업로드 채점(화면⑤) 전용. 값이 있으면 persistEvaluation이
+   * 신규 상담 생성 시 그대로 쓰고, 없으면 기존 기본값('unknown' 등)을 유지한다
+   * (터미널 스크립트 score-one.ts/score-all.ts는 이 옵션을 넘기지 않으므로
+   * 기존 동작 불변).
+   */
+  agentId?: string
+  consultedAt?: string // 'YYYY-MM-DD HH:MM:SS'
+  consultationType?: string
+  /** 3-E 검증 로그(stage='인용대조') 기록 여부 — persistEvaluation으로 그대로 전달 */
+  logVerification?: boolean
+  /**
+   * persistEvaluation() 저장 직후 PersistResult(unmatchedQuotes 등)를 그대로
+   * 받는 콜백 — scoreConsultation의 반환 타입(EvalOutput)은 건드리지 않고
+   * 부가정보만 뽑아쓸 때 사용(업로드 API 전용, opt-in). 기존 호출부는 안 넘기므로
+   * 무영향.
+   */
+  onPersisted?: (result: PersistResult) => void
 }
 
 export async function scoreConsultation(
@@ -239,7 +258,12 @@ export async function scoreConsultation(
   await saveResult(final)
   const persisted = await persistEvaluation(상담ID, utterances, final, {
     onConfirmedReview: options.onConfirmedReview,
+    agentId: options.agentId,
+    consultedAt: options.consultedAt,
+    consultationType: options.consultationType,
+    logVerification: options.logVerification,
   })
+  options.onPersisted?.(persisted)
   if (persisted.unmatchedQuotes.length > 0) {
     console.warn(
       `⚠ 인용 원문대조 불일치 ${persisted.unmatchedQuotes.length}건:`,

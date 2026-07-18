@@ -4,8 +4,10 @@
  */
 export default function FilterBar({
   searchParams,
+  children,
 }: {
   searchParams: Record<string, string | undefined>;
+  children?: React.ReactNode;
 }) {
   return (
     <form
@@ -109,6 +111,7 @@ export default function FilterBar({
       >
         조회
       </button>
+      {children}
     </form>
   );
 }

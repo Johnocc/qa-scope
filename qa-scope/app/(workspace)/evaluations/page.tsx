@@ -1,6 +1,8 @@
 import { getEvaluations } from '@/lib/api/evaluations';
+import { listAgents } from '@/lib/db/agentRepo';
 import FilterBar from '@/components/evaluations/FilterBar';
 import EvaluationTable from '@/components/evaluations/EvaluationTable';
+import UploadPanel from '@/components/evaluations/UploadPanel';
 
 export default async function EvaluationsPage({
   searchParams,
@@ -8,6 +10,8 @@ export default async function EvaluationsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
+
+  const agents = await listAgents({ activeOnly: true });
 
   const data = await getEvaluations({
     date_from: sp.date_from,
@@ -35,7 +39,9 @@ export default async function EvaluationsPage({
 
   return (
     <div>
-      <FilterBar searchParams={sp} />
+      <FilterBar searchParams={sp}>
+        <UploadPanel agents={agents} />
+      </FilterBar>
       <EvaluationTable items={data.items} />
       <div className="border-t border-border px-6 py-4 text-sm text-sub">
         전체 {data.summary.total_count}건 · 위험 {data.summary.risk_count}건
