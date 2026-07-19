@@ -60,9 +60,13 @@ export default function ReviewPanel({
   }
 
   async function withdraw() {
-    // 확정 철회는 재채점 스킵 보호가 풀리는 행위라 2차 확인 (검수중 철회는 그 보호가
-    // 애초에 없어 확인 없이 바로 실행 — 계약 결정 3-A 배경 그대로).
-    if (state === '확정' && !window.confirm('확정을 철회하면 재채점 대상이 됩니다. 철회하시겠습니까?')) {
+    // 철회는 두 상태 모두 파괴적 동작(evaluation_review_overrides가 CASCADE로
+    // 함께 삭제됨) — 확정 철회는 추가로 재채점 스킵 보호까지 풀리므로 문구를 구분한다.
+    const message =
+      state === '확정'
+        ? '확정을 철회하면 재채점 대상이 되고, 항목 수정 내용도 함께 삭제됩니다. 철회하시겠습니까?'
+        : '철회하면 저장된 검수 내용(항목 수정 포함)이 삭제됩니다. 철회하시겠습니까?';
+    if (!window.confirm(message)) {
       return;
     }
     setPending('withdraw');
