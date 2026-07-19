@@ -19,6 +19,7 @@
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/bcryptjs": "^2.4.6",
+    "@vercel/blob": "^2.6.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "bcryptjs": "^3.0.3",

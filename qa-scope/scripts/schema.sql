@@ -155,6 +155,8 @@ CREATE TABLE IF NOT EXISTS `consultation_master` (
   `consultation_type` ENUM('신규·보장','계약변경','해지·환급','보험금청구','단순문의')
                                        NULL DEFAULT NULL
       COMMENT '상담 유형. 입력 시점에 있으면 채움, 없으면 NULL(AI 분류 결과는 3-A에 별도 저장)',
+  `audio_url`         VARCHAR(500)     NULL DEFAULT NULL
+      COMMENT '상담 녹음 파일 URL (Vercel Blob) (★v9 신설)',
   `created_at`        DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`consultation_id`),
   UNIQUE INDEX `uq_consultation_code` (`consultation_code`),
@@ -696,6 +698,26 @@ SET @ddl := IF(@role_exists = 0,
      COMMENT ''계정 역할 — MANAGER=QA매니저(채점·검수 운영), ADMIN=관리자(설정·계정 정책, 채점 실행 권한 없음)''
      AFTER `display_name`',
   'SELECT ''role 컬럼 이미 존재 — 건너뜀''');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================================================
+-- v9 마이그레이션 — consultation_master에 audio_url 컬럼 추가 (재실행 안전)
+--   상담 녹음 파일 URL(Vercel Blob) 보관용. 신규 DB는 위 CREATE TABLE에
+--   반영되면 no-op, 기존 DB는 CREATE TABLE IF NOT EXISTS가 건너뛰므로
+--   여기서 이행한다.
+-- =====================================================================
+SET @audio_url_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'qa_scope'
+     AND TABLE_NAME = 'consultation_master'
+     AND COLUMN_NAME = 'audio_url'
+);
+SET @ddl := IF(@audio_url_exists = 0,
+  'ALTER TABLE `consultation_master`
+     ADD COLUMN `audio_url` VARCHAR(500) NULL DEFAULT NULL
+     COMMENT ''상담 녹음 파일 URL (Vercel Blob)''
+     AFTER `consultation_type`',
+  'SELECT ''audio_url 컬럼 이미 존재 — 건너뜀''');
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET SQL_MODE=@OLD_SQL_MODE;

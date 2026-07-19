@@ -12,17 +12,22 @@
  * 묻히지 않게 한다. 재시도는 상담코드가 매번 새로 생성되므로 막히지 않는다.
  */
 import { NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
 import { parseTranscript } from '@/lib/scoring/parse';
 import { scoreConsultation } from '@/lib/scoring/pipeline';
 import { CONSULT_TYPES } from '@/lib/scoring/constants';
 import { listAgents } from '@/lib/db/agentRepo';
 import { findConsultation } from '@/lib/db/consultationRepo';
+import { query } from '@/lib/db/pool';
 
 // 실측(zz_timing_test, 2026-07-18): 약 62초(LLM 37s + DB저장 25s) × 2배+ 여유
 export const maxDuration = 300;
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 const DROPPED_LINE_RATIO_LIMIT = 0.5; // 인식 실패 줄이 전체의 50% 초과 시 거부
+
+const MAX_AUDIO_SIZE = 3.5 * 1024 * 1024; // 3.5MB — 음성 파일(선택) 상한, MAX_FILE_SIZE와 별개
+const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav'];
 
 // "UP-" + YYYYMMDDHHmmss + "-" + 4자리 랜덤 — 대외 상담코드와 형식으로 구분(약관업로드의 policy_타임스탬프와 동일 원칙)
 function generateConsultationCode(): string {
@@ -141,9 +146,32 @@ export async function POST(request: Request) {
     );
   }
 
+  // h. 음성 파일(선택) — 있으면 채점 시작 전에 검증. 없으면(null) 아래 로직 전부 no-op이라
+  //    기존 텍스트 전용 업로드 흐름은 한 글자도 안 바뀐다.
+  const audioField = formData?.get('audio');
+  const hasAudio = audioField instanceof File && audioField.size > 0;
+  const audioFile = hasAudio ? (audioField as File) : null;
+  let audioExt: string | null = null;
+  if (audioFile) {
+    audioExt = AUDIO_EXTENSIONS.find((e) => audioFile.name.toLowerCase().endsWith(e)) ?? null;
+    if (!audioExt) {
+      return NextResponse.json(
+        { error: 'invalid audio type', message: '.mp3, .m4a, .wav 파일만 업로드할 수 있습니다' },
+        { status: 400 },
+      );
+    }
+    if (audioFile.size > MAX_AUDIO_SIZE) {
+      return NextResponse.json(
+        { error: 'audio too large', message: '음성 파일이 너무 큽니다. 3.5MB 이하만 지원' },
+        { status: 400 },
+      );
+    }
+  }
+
   try {
     let unmatchedQuoteCount = 0;
     let evaluationId: number | null = null;
+    let consultationId: number | null = null;
     const result = await scoreConsultation(consultationCode, content, {
       agentId,
       consultedAt,
@@ -152,8 +180,25 @@ export async function POST(request: Request) {
       onPersisted: (persisted) => {
         unmatchedQuoteCount = persisted.unmatchedQuotes.length;
         evaluationId = persisted.evaluationId;
+        consultationId = persisted.consultationId;
       },
     });
+
+    // 음성 파일(선택) — 채점 성공 후 Blob 업로드 + audio_url UPDATE.
+    // 실패해도 채점 결과 저장 자체는 그대로 유지한다(전체 실패로 번지지 않게).
+    let audioSaved = false;
+    if (audioFile && audioExt) {
+      try {
+        const blob = await put(`audio/${consultationCode}${audioExt}`, audioFile, { access: 'public' });
+        await query('UPDATE `consultation_master` SET `audio_url` = ? WHERE `consultation_id` = ?', [
+          blob.url,
+          consultationId,
+        ]);
+        audioSaved = true;
+      } catch (err) {
+        console.error('[upload] 음성 저장 실패:', err);
+      }
+    }
 
     return NextResponse.json({
       consultation_code: consultationCode,
@@ -163,6 +208,7 @@ export async function POST(request: Request) {
       risk_flagged: result.집계.위험표시여부,
       dropped_lines: droppedLines.length,
       unmatched_quotes: unmatchedQuoteCount,
+      ...(hasAudio ? { audio_saved: audioSaved } : {}),
     });
   } catch (err) {
     // Vercel 로그에 스택트레이스가 남도록 err 객체 전체를 넘긴다(message만 추출 금지).

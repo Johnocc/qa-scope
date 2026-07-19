@@ -28,9 +28,12 @@ interface UploadResult {
   risk_flagged: boolean;
   dropped_lines: number;
   unmatched_quotes: number;
+  /** 음성 파일을 첨부했을 때만 응답에 존재(route.ts 계약) */
+  audio_saved?: boolean;
 }
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_AUDIO_SIZE = 3.5 * 1024 * 1024; // 3.5MB — route.ts MAX_AUDIO_SIZE와 동일 값
 
 interface Props {
   agents: AgentOption[];
@@ -48,6 +51,7 @@ export default function UploadForm({ agents, onBusyChange, onResult, onClose }: 
   const [result, setResult] = useState<UploadResult | null>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLInputElement>(null);
 
   function setBusy(next: boolean) {
     setBusyState(next);
@@ -64,6 +68,12 @@ export default function UploadForm({ agents, onBusyChange, onResult, onClose }: 
       return;
     }
 
+    const audioFile = audioRef.current?.files?.[0];
+    if (audioFile && audioFile.size > MAX_AUDIO_SIZE) {
+      setError('음성 파일이 너무 큽니다. 3.5MB 이하만 첨부할 수 있습니다.');
+      return;
+    }
+
     setBusy(true);
     setError(null);
     setResult(null);
@@ -71,6 +81,9 @@ export default function UploadForm({ agents, onBusyChange, onResult, onClose }: 
       const formData = new FormData(e.currentTarget);
       const date = dateRef.current?.value ?? '';
       formData.set('consulted_at', `${date}T${time}`);
+      if (audioFile) {
+        formData.append('audio', audioFile);
+      }
 
       const res = await fetch('/api/evaluations/upload', {
         method: 'POST',
@@ -128,6 +141,9 @@ export default function UploadForm({ agents, onBusyChange, onResult, onClose }: 
             <dd className="font-medium tabular-nums text-ink">{result.unmatched_quotes}</dd>
           </div>
         </dl>
+        {result.audio_saved === false && (
+          <p className="mt-3 text-xs text-danger-text">채점은 완료됐지만 음성 저장에 실패했습니다.</p>
+        )}
         <button
           type="button"
           onClick={() => onClose?.()}
@@ -148,6 +164,17 @@ export default function UploadForm({ agents, onBusyChange, onResult, onClose }: 
           name="file"
           accept=".txt"
           required
+          disabled={busy}
+          className="w-full text-sm text-sub file:mr-3 file:rounded-control file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink disabled:opacity-50"
+        />
+      </div>
+
+      <div className="mt-4">
+        <label className="mb-1 block text-xs text-sub">상담 녹음 (선택)</label>
+        <input
+          ref={audioRef}
+          type="file"
+          accept=".mp3,.m4a,.wav"
           disabled={busy}
           className="w-full text-sm text-sub file:mr-3 file:rounded-control file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink disabled:opacity-50"
         />
