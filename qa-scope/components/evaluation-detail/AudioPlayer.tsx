@@ -7,7 +7,7 @@ export default function AudioPlayer({ audioUrl }: { audioUrl: string | null | un
 
   return (
     <div className="border-b border-border-subtle p-4">
-      <audio controls src={audioUrl} className="w-full" />
+      <audio id="consultation-audio" controls src={audioUrl} className="w-full" />
     </div>
   );
 }

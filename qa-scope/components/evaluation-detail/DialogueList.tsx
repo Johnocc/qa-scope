@@ -1,3 +1,5 @@
+'use client';
+
 import type { DialogueTurn } from '@/lib/types/evaluation';
 
 function formatOffset(sec: number | null): string {
@@ -5,6 +7,13 @@ function formatOffset(sec: number | null): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function seekTo(offsetSec: number) {
+  const audio = document.getElementById('consultation-audio') as HTMLAudioElement | null;
+  if (!audio) return; // 음성 미첨부 — 조용히 무동작
+  audio.currentTime = offsetSec;
+  audio.play();
 }
 
 /**
@@ -33,7 +42,19 @@ export default function DialogueList({ dialogues }: { dialogues: DialogueTurn[] 
             {d.content}
           </div>
         );
-        const time = <span className="shrink-0 text-xs text-sub">[{formatOffset(d.offset_sec)}]</span>;
+        const time =
+          d.offset_sec !== null ? (
+            <button
+              type="button"
+              onClick={() => seekTo(d.offset_sec!)}
+              title="이 시점부터 재생"
+              className="shrink-0 text-xs text-sub hover:text-ink hover:underline"
+            >
+              [{formatOffset(d.offset_sec)}]
+            </button>
+          ) : (
+            <span className="shrink-0 text-xs text-sub">[{formatOffset(d.offset_sec)}]</span>
+          );
         return (
           <div
             id={`d-${d.dialogue_id}`}
