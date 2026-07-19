@@ -49,6 +49,9 @@ export default function ItemScoreEditPanel({
           const overrideEntry = overrides.get(code);
           const isOverridden = overrideEntry !== undefined;
           const effectiveLevel = overrideEntry?.level_override ?? aiLevel;
+          // 근거·코멘트는 AI 원본 판정 설명 — override 여부와 무관하게 항상 표시 (ItemScorePanel과 동일 로직)
+          const firstJumpable = it.근거.find((e) => e.dialogue_id !== null);
+          const hasNote = it.충족수준 === '해당없음' || firstJumpable || it.근거.length > 0 || it.코멘트;
 
           function handleSelect(level: Level) {
             if (readOnly) return;
@@ -111,6 +114,21 @@ export default function ItemScoreEditPanel({
                     );
                   })}
                 </div>
+
+                {hasNote && (
+                  <div className="mt-2 space-y-1.5 rounded-control bg-surface-muted px-3 py-2 text-xs text-sub">
+                    {it.코멘트 && <p>{it.코멘트}</p>}
+                    {it.충족수준 === '해당없음' ? (
+                      <p>해당없음(N/A)이라 근거 발화가 없습니다</p>
+                    ) : firstJumpable ? (
+                      <a href={`#d-${firstJumpable.dialogue_id}`} className="text-ink underline decoration-border underline-offset-2 hover:decoration-ink">
+                        근거 발화 보기 →
+                      </a>
+                    ) : it.근거.length > 0 ? (
+                      <p>(인용 대조 실패 — 원문에서 못 찾음)</p>
+                    ) : null}
+                  </div>
+                )}
 
                 {readOnly
                   ? overrideEntry?.override_reason && (
