@@ -19,6 +19,7 @@
 import { query, withTransaction } from './pool';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { computeAggregates } from '../scoring/scoring';
+import { deriveCodeFlags } from '../scoring/calculate';
 import { ITEM_CODES, LEVELS, type ItemCode, type Level } from '../scoring/constants';
 import * as configRepo from './configRepo';
 import { computeStatusLabels, DEFAULT_LOW_SCORE_CUT } from './statusLabels';
@@ -95,18 +96,28 @@ export async function upsertReview(
     [evaluationId],
   );
 
+  const masterRows = await query<{ matching_verdict: string | null }>(
+    `SELECT matching_verdict FROM ai_evaluation_master WHERE evaluation_id = ?`,
+    [evaluationId],
+  );
+  const matchingVerdict = masterRows[0]?.matching_verdict ?? undefined;
+
   // ③ 유효 집계 — AI 판정에 override를 얹어 computeAggregates 재계산 (별도 산식 금지).
-  //    플래그는 AI 판정 보존 (계약 §4 미결 세부의 현재 입장 — 소거·추가 없음)
+  //    위험플래그는 AI 원본에 규칙 1·3·6 코드 파생을 더한다 — calcAggregate(채점
+  //    파이프라인)와 공유하는 deriveCodeFlags. 소거는 하지 않는다(역방향 미대응,
+  //    원본 플래그는 항상 보존 — 기술 부채로 기록).
   const aiLevelByCode = new Map<ItemCode, Level>(details.map((d) => [d.item_code, d.level]));
   const overrideByCode = new Map<ItemCode, OverrideInput>(overrides.map((o) => [o.item_code, o]));
   const effectiveItems = ITEM_CODES.map((code) => ({
     항목코드: code,
     충족수준: overrideByCode.get(code)?.level_override ?? aiLevelByCode.get(code),
   }));
+  const baseFlags = flags.map((f) => ({ 규칙번호: f.rule_number }));
+  const effectiveFlags = deriveCodeFlags(effectiveItems, baseFlags, matchingVerdict);
   const cut = await configRepo.getNumber('low_score_cut', DEFAULT_LOW_SCORE_CUT);
   const agg = computeAggregates(
     effectiveItems,
-    flags.map((f) => ({ 규칙번호: f.rule_number })),
+    effectiveFlags,
     cut,
   );
 

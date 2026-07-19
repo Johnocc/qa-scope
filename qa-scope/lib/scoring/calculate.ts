@@ -14,6 +14,52 @@ function itemScore(level: ItemEval['충족수준'], base: number): number {
   return 0
 }
 
+export interface MinimalLeveledItem {
+  항목코드: string
+  충족수준: string
+}
+
+export interface MinimalFlag {
+  규칙번호: number
+}
+
+/**
+ * 위험플래그 규칙 1·3·6 코드 파생 — AI가 놓쳤을 수 있는 규칙을 항목 판정값에서
+ * 직접 도출한다(이중 안전망). LLM(또는 검수자 override)이 이미 해당 규칙번호를
+ * 가지고 있으면 원본을 유지하고 코드 파생분은 추가하지 않는다(중복 방지).
+ * calcAggregate(채점 파이프라인)와 reviewRepo.upsertReview(검수 override 재계산)
+ * 양쪽이 이 함수 하나를 공유 — 규칙이 바뀌면 한 곳만 고치면 된다.
+ * 역방향(미충족→충족으로 고쳐 규칙이 더 이상 성립 안 할 때 기존 플래그 제거)은
+ * 이 함수의 범위 밖 — 원본 플래그는 항상 보존한다.
+ */
+export function deriveCodeFlags<F extends MinimalFlag>(
+  items: MinimalLeveledItem[],
+  flags: F[],
+  매칭판정?: string,
+): (F | RiskFlag)[] {
+  const derived: RiskFlag[] = []
+
+  if (
+    !flags.some((f) => f.규칙번호 === 1) &&
+    items.some((item) => item.항목코드 === 'D6' && item.충족수준 === '미충족')
+  ) {
+    derived.push({ 규칙번호: 1, 근거: 'D6(부당 권유 금지) 미충족 — 코드 판정' })
+  }
+
+  if (
+    !flags.some((f) => f.규칙번호 === 3) &&
+    items.some((item) => item.항목코드 === 'B1' && item.충족수준 === '미충족')
+  ) {
+    derived.push({ 규칙번호: 3, 근거: 'B1(정보 정확성) 미충족 — 코드 판정' })
+  }
+
+  if (!flags.some((f) => f.규칙번호 === 6) && 매칭판정 === '명백한 오류') {
+    derived.push({ 규칙번호: 6, 근거: 'D2 매칭판정 명백한 오류 — 코드 판정' })
+  }
+
+  return [...flags, ...derived]
+}
+
 export function fillItemScores(items: ItemEval[]): ItemEval[] {
   return items.map((item) => {
     const base = SCORE_TABLE[item.항목코드]
@@ -66,7 +112,7 @@ export function calcAggregate(
     )
     .reduce((s, item) => s + SCORE_TABLE[item.항목코드], 0)
 
-  const effectiveFlags: RiskFlag[] = [...flags]
+  let effectiveFlags: RiskFlag[] = [...flags]
   if (d15BaseSum > 0) {
     const dItems = items.filter(
       (item) => item.항목코드.startsWith('D') && item.충족수준 !== '해당없음'
@@ -85,27 +131,8 @@ export function calcAggregate(
     }
   }
 
-  // 규칙1: D6(부당권유 금지) 미충족 — 코드가 직접 판정(LLM 누락 대비 이중 안전망).
-  //   LLM이 이미 규칙1을 보냈으면 그 원본 근거를 유지하고 코드 파생분은 추가하지 않는다.
-  if (
-    !flags.some((f) => f.규칙번호 === 1) &&
-    items.some((item) => item.항목코드 === 'D6' && item.충족수준 === '미충족')
-  ) {
-    effectiveFlags.push({ 규칙번호: 1, 근거: 'D6(부당 권유 금지) 미충족 — 코드 판정' })
-  }
-
-  // 규칙3: B1(정보 정확성) 미충족 — 코드 판정
-  if (
-    !flags.some((f) => f.규칙번호 === 3) &&
-    items.some((item) => item.항목코드 === 'B1' && item.충족수준 === '미충족')
-  ) {
-    effectiveFlags.push({ 규칙번호: 3, 근거: 'B1(정보 정확성) 미충족 — 코드 판정' })
-  }
-
-  // 규칙6: D2 매칭판정 명백한 오류 — 코드 판정 (판매정보가 없으면 매칭판정은 undefined → 조건 미성립)
-  if (!flags.some((f) => f.규칙번호 === 6) && 매칭판정 === '명백한 오류') {
-    effectiveFlags.push({ 규칙번호: 6, 근거: 'D2 매칭판정 명백한 오류 — 코드 판정' })
-  }
+  // 규칙 1·3·6 코드 파생 — reviewRepo.upsertReview와 공유하는 로직 (deriveCodeFlags 참고)
+  effectiveFlags = deriveCodeFlags(items, effectiveFlags, 매칭판정)
 
   const criticalFlagNums = new Set<number>([1, 2, 5, 6])
   const hasCritical = effectiveFlags.some((f) => criticalFlagNums.has(f.규칙번호))
