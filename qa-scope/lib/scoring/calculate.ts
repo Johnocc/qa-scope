@@ -35,7 +35,8 @@ export function fillItemScores(items: ItemEval[]): ItemEval[] {
 export function calcAggregate(
   items: ItemEval[],
   flags: RiskFlag[],
-  cutoff = 70
+  cutoff = 70,
+  매칭판정?: string
 ): { 집계: EvalOutput['집계']; flags: RiskFlag[] } {
   let naBaseSum = 0
   let rawSum = 0
@@ -82,6 +83,28 @@ export function calcAggregate(
         근거: `D영역 득점률 ${pct}% (기준 50% 미만)`,
       })
     }
+  }
+
+  // 규칙1: D6(부당권유 금지) 미충족 — 코드가 직접 판정(LLM 누락 대비 이중 안전망).
+  //   LLM이 이미 규칙1을 보냈으면 그 원본 근거를 유지하고 코드 파생분은 추가하지 않는다.
+  if (
+    !flags.some((f) => f.규칙번호 === 1) &&
+    items.some((item) => item.항목코드 === 'D6' && item.충족수준 === '미충족')
+  ) {
+    effectiveFlags.push({ 규칙번호: 1, 근거: 'D6(부당 권유 금지) 미충족 — 코드 판정' })
+  }
+
+  // 규칙3: B1(정보 정확성) 미충족 — 코드 판정
+  if (
+    !flags.some((f) => f.규칙번호 === 3) &&
+    items.some((item) => item.항목코드 === 'B1' && item.충족수준 === '미충족')
+  ) {
+    effectiveFlags.push({ 규칙번호: 3, 근거: 'B1(정보 정확성) 미충족 — 코드 판정' })
+  }
+
+  // 규칙6: D2 매칭판정 명백한 오류 — 코드 판정 (판매정보가 없으면 매칭판정은 undefined → 조건 미성립)
+  if (!flags.some((f) => f.규칙번호 === 6) && 매칭판정 === '명백한 오류') {
+    effectiveFlags.push({ 규칙번호: 6, 근거: 'D2 매칭판정 명백한 오류 — 코드 판정' })
   }
 
   const criticalFlagNums = new Set<number>([1, 2, 5, 6])
