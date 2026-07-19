@@ -63,6 +63,16 @@ export async function PUT(
     if (!review) {
       return NextResponse.json({ error: '평가를 찾을 수 없음' }, { status: 404 });
     }
+
+    // 이력 스냅샷 기록 — upsertReview()는 저장 직후 getReview()를 반환하므로
+    // review가 이미 "DB에 실제로 박힌 값"이다(요청 본문 재조립 아님).
+    // 실패해도 검수 저장 응답 자체는 성공으로 유지 — 조용히 삼키지 않고 크게 로깅.
+    try {
+      await db.reviews.insertReviewHistory(evaluationId, review);
+    } catch (err) {
+      console.error('[review] 이력 저장 실패:', err);
+    }
+
     return NextResponse.json({ review });
   } catch (err: any) {
     if (err instanceof ReviewValidationError) {

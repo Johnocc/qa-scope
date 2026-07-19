@@ -22,6 +22,7 @@ import { computeAggregates } from '../scoring/scoring';
 import { ITEM_CODES, LEVELS, type ItemCode, type Level } from '../scoring/constants';
 import * as configRepo from './configRepo';
 import { computeStatusLabels, DEFAULT_LOW_SCORE_CUT } from './statusLabels';
+import type { ReviewHistoryEntry } from '../types/evaluation';
 
 export interface OverrideInput {
   item_code: ItemCode;
@@ -303,4 +304,46 @@ export async function hasConfirmedReview(
     [consultationId, evaluator],
   );
   return rows.length > 0;
+}
+
+/**
+ * 다음 검수 이력 버전 번호 — 해당 평가의 최대 version_no + 1 (이력 없으면 1).
+ * verifyLogRepo.ts의 getNextAttemptNo()와 동일 패턴(1부터 재시작 금지, MAX+1 채번).
+ */
+export async function getNextVersionNo(evaluationId: number): Promise<number> {
+  const rows = await query<{ next_no: number }>(
+    `SELECT COALESCE(MAX(version_no), 0) + 1 AS next_no
+       FROM evaluation_review_history
+      WHERE evaluation_id = ?`,
+    [evaluationId],
+  );
+  return rows[0].next_no;
+}
+
+/**
+ * 검수 이력 스냅샷 1건 기록 — getNextVersionNo로 채번 후 INSERT.
+ * snapshot은 호출부가 넘긴 값을 그대로 JSON.stringify해 저장한다(가공 없음).
+ */
+export async function insertReviewHistory(evaluationId: number, snapshot: unknown): Promise<void> {
+  const versionNo = await getNextVersionNo(evaluationId);
+  await query(
+    `INSERT INTO evaluation_review_history (evaluation_id, version_no, snapshot) VALUES (?, ?, ?)`,
+    [evaluationId, versionNo, JSON.stringify(snapshot)],
+  );
+}
+
+/**
+ * 검수 이력 전체 조회 — 최신 버전 먼저(version_no DESC).
+ * snapshot 컬럼은 JSON.parse하지 않는다 — mysql2가 JSON 타입 컬럼을 이미 파싱된
+ * 객체로 반환함을 실물 확인함(scripts/_tmp-check-json-behavior.ts, typeof === 'object').
+ * 여기서 다시 JSON.parse하면 문자열이 아닌 값을 파싱하려다 런타임 에러가 난다.
+ */
+export async function getReviewHistory(evaluationId: number): Promise<ReviewHistoryEntry[]> {
+  return query<ReviewHistoryEntry>(
+    `SELECT history_id, version_no, snapshot, created_at
+       FROM evaluation_review_history
+      WHERE evaluation_id = ?
+      ORDER BY version_no DESC`,
+    [evaluationId],
+  );
 }

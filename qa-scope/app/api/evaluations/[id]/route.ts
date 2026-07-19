@@ -57,7 +57,16 @@ export async function GET(
     // review 블록 (★v1.1) — 검수 없으면 null (기존 3블록 소비 코드는 무영향)
     const review = await db.reviews.getReview(evaluationId);
 
-    return NextResponse.json({ header, evaluation, dialogues, review });
+    // 검수 이력(★v10) — 부가 정보. 조회 실패가 상세 화면 전체를 500으로 만들면
+    // 안 되므로(음성·검수와 동일 원칙) 실패 시 빈 배열로 폴백하고 크게 로깅.
+    let reviewHistory: Awaited<ReturnType<typeof db.reviews.getReviewHistory>> = [];
+    try {
+      reviewHistory = await db.reviews.getReviewHistory(evaluationId);
+    } catch (err) {
+      console.error('[evaluation-detail] 검수 이력 조회 실패:', err);
+    }
+
+    return NextResponse.json({ header, evaluation, dialogues, review, reviewHistory });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

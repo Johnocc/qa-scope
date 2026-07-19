@@ -182,10 +182,18 @@ export interface Review {
   reviewed_at: string;
 }
 
+export interface ReviewHistoryEntry {
+  history_id: number;
+  version_no: number;
+  snapshot: Review;
+  created_at: string;
+}
+
 export interface EvaluationDetailResponse {
   header: EvaluationDetailHeader;
   evaluation: EvaluationV2;
   dialogues: DialogueTurn[];
   /** 검수 없으면 null */
   review: Review | null;
+  reviewHistory: ReviewHistoryEntry[];
 }
