@@ -6,9 +6,11 @@ import AudioPlayer from '@/components/evaluation-detail/AudioPlayer';
 import DialogueList from '@/components/evaluation-detail/DialogueList';
 import ReviewPanel from '@/components/evaluation-detail/ReviewPanel';
 import ReviewHistoryList from '@/components/evaluation-detail/ReviewHistoryList';
+import SaleInfoPanel from '@/components/evaluation-detail/SaleInfoPanel';
+import SummaryPanel from '@/components/evaluation-detail/SummaryPanel';
 import RiskDot from '@/components/common/RiskDot';
 import { ReviewOverridesProvider } from '@/components/review/ReviewOverridesProvider';
-import ScorePanelTabs from '@/components/review/ScorePanelTabs';
+import ItemScoreEditPanel from '@/components/review/ItemScoreEditPanel';
 
 export default async function EvaluationDetailPage({
   params,
@@ -63,19 +65,21 @@ export default async function EvaluationDetailPage({
           <RiskDot active={displayRisk} />
         </div>
       </div>
-      <ReviewOverridesProvider>
+      <ReviewOverridesProvider
+        initialOverrides={review?.overrides ?? []}
+        key={review ? `${review.review_status}-${review.reviewed_at}` : 'no-review'}
+      >
         <div className="grid min-h-0 flex-1 grid-cols-2">
           <div className="h-full overflow-y-auto border-r border-border scrollbar-hidden">
             <AudioPlayer audioUrl={header.audio_url} />
             <DialogueList dialogues={dialogues} />
           </div>
           <div className="h-full overflow-y-auto">
-            <ScorePanelTabs
+            <SummaryPanel items={evaluation.항목평가} score={displayScore} labels={displayLabels} />
+            {evaluation.판매정보 && <SaleInfoPanel saleInfo={evaluation.판매정보} />}
+            <ItemScoreEditPanel
               items={evaluation.항목평가}
-              locked={review?.review_status === '확정'}
-              score={displayScore}
-              labels={displayLabels}
-              saleInfo={evaluation.판매정보}
+              readOnly={review?.review_status === '확정'}
             />
           </div>
         </div>

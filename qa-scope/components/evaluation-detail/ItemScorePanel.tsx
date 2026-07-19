@@ -1,3 +1,5 @@
+// 현재 화면②에서는 미사용(단일 패널 전환, ItemScoreEditPanel로 대체) —
+// 검수 이력 상세(과거 스냅샷 읽기 전용 표시)에서 재사용 예정이라 보존.
 import { ITEM_NAMES, DOMAIN_NAMES, ITEM_CODES, domainOf, type ItemCode } from '@/lib/constants/rubric';
 import type { EvaluationItemScore } from '@/lib/types/evaluation';
 

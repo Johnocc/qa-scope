@@ -12,14 +12,22 @@ const LEVEL_STYLE: Record<string, string> = {
   해당없음: 'bg-na-bg text-na-text',
 };
 
-export default function ItemScoreEditPanel({ items }: { items: EvaluationItemScore[] }) {
+export default function ItemScoreEditPanel({
+  items,
+  readOnly = false,
+}: {
+  items: EvaluationItemScore[];
+  readOnly?: boolean;
+}) {
   const { overrides, setOverride, clearOverride } = useReviewOverrides();
   const byCode = new Map(items.map((it) => [it.항목코드, it]));
   let currentDomain = '';
 
   return (
     <div className="bg-surface-muted">
-      <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">항목별 점수 수정</div>
+      <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">
+        {readOnly ? '검수 확정 내역' : '항목별 점수 수정'}
+      </div>
       <div className="space-y-2.5 p-4">
         {ITEM_CODES.map((code) => {
           const it = byCode.get(code);
@@ -34,6 +42,7 @@ export default function ItemScoreEditPanel({ items }: { items: EvaluationItemSco
           const effectiveLevel = overrideEntry?.level_override ?? aiLevel;
 
           function handleSelect(level: Level) {
+            if (readOnly) return;
             if (level === aiLevel) {
               clearOverride(code);
             } else {
@@ -42,7 +51,7 @@ export default function ItemScoreEditPanel({ items }: { items: EvaluationItemSco
           }
 
           function handleReasonChange(reason: string) {
-            if (!overrideEntry) return;
+            if (readOnly || !overrideEntry) return;
             setOverride(code, overrideEntry.level_override, reason || null);
           }
 
@@ -82,11 +91,12 @@ export default function ItemScoreEditPanel({ items }: { items: EvaluationItemSco
                         key={level}
                         type="button"
                         onClick={() => handleSelect(level)}
+                        disabled={readOnly}
                         className={`rounded-control border px-2.5 py-1 text-xs font-medium ${
                           active
                             ? 'border-ink bg-ink text-ink-inverse'
                             : 'border-border bg-surface-card text-sub hover:bg-surface-hover'
-                        }`}
+                        } ${readOnly ? 'cursor-default opacity-70' : ''}`}
                       >
                         {level}
                       </button>
@@ -94,15 +104,25 @@ export default function ItemScoreEditPanel({ items }: { items: EvaluationItemSco
                   })}
                 </div>
 
-                {isOverridden && (
-                  <textarea
-                    placeholder="수정 사유 (선택)"
-                    value={overrideEntry.override_reason ?? ''}
-                    onChange={(e) => handleReasonChange(e.target.value)}
-                    rows={2}
-                    className="mt-2 w-full rounded-control border border-border bg-surface-card px-2 py-1.5 text-xs placeholder:text-sub/60 focus:outline-none focus:ring-2 focus:ring-ink/20"
-                  />
-                )}
+                {readOnly
+                  ? overrideEntry?.override_reason && (
+                      <textarea
+                        value={overrideEntry.override_reason}
+                        readOnly
+                        disabled
+                        rows={2}
+                        className="mt-2 w-full rounded-control border border-border bg-surface-muted px-2 py-1.5 text-xs text-sub"
+                      />
+                    )
+                  : isOverridden && (
+                      <textarea
+                        placeholder="수정 사유 (선택)"
+                        value={overrideEntry.override_reason ?? ''}
+                        onChange={(e) => handleReasonChange(e.target.value)}
+                        rows={2}
+                        className="mt-2 w-full rounded-control border border-border bg-surface-card px-2 py-1.5 text-xs placeholder:text-sub/60 focus:outline-none focus:ring-2 focus:ring-ink/20"
+                      />
+                    )}
               </div>
             </div>
           );

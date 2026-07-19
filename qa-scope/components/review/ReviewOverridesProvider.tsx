@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { ItemCode, Level } from '@/lib/scoring/constants';
 import type { OverrideInput } from '@/lib/db/reviewRepo';
+import type { ReviewOverride } from '@/lib/types/evaluation';
 
 interface OverrideEntry {
   level_override: Level;
@@ -18,8 +19,25 @@ interface ReviewOverridesContextValue {
 
 const ReviewOverridesContext = createContext<ReviewOverridesContextValue | null>(null);
 
-export function ReviewOverridesProvider({ children }: { children: React.ReactNode }) {
-  const [overrides, setOverrides] = useState<Map<ItemCode, OverrideEntry>>(new Map());
+function toInitialMap(initialOverrides: ReviewOverride[]): Map<ItemCode, OverrideEntry> {
+  return new Map(
+    initialOverrides.map((o) => [
+      o.item_code as ItemCode,
+      { level_override: o.level_override, override_reason: o.override_reason },
+    ]),
+  );
+}
+
+export function ReviewOverridesProvider({
+  children,
+  initialOverrides = [],
+}: {
+  children: React.ReactNode;
+  initialOverrides?: ReviewOverride[];
+}) {
+  const [overrides, setOverrides] = useState<Map<ItemCode, OverrideEntry>>(() =>
+    toInitialMap(initialOverrides),
+  );
 
   const setOverride = useCallback((code: ItemCode, level: Level, reason: string | null) => {
     setOverrides((prev) => {
