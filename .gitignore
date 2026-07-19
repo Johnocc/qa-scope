@@ -151,3 +151,5 @@ aiven-ca.pem
 
 # 세션 상태 파일
 .omc/
+.vercel
+.env*
