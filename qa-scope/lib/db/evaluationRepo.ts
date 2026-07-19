@@ -365,7 +365,7 @@ function dashboardWhere({
     params.push(consultType);
   }
   if (statusLabel) {
-    conds.push('m.status_label = ?');
+    conds.push('COALESCE(r.status_label_effective, m.status_label) = ?');
     params.push(statusLabel);
   }
   if (reviewStatus === '미검수') {
@@ -376,9 +376,9 @@ function dashboardWhere({
     params.push(reviewStatus);
   }
   if (riskFlagged === 'true') {
-    conds.push('m.risk_flagged = 1');
+    conds.push('COALESCE(r.risk_flagged_effective, m.risk_flagged) = 1');
   } else if (riskFlagged === 'false') {
-    conds.push('m.risk_flagged = 0');
+    conds.push('COALESCE(r.risk_flagged_effective, m.risk_flagged) = 0');
   }
   return { sql: `WHERE ${conds.join(' AND ')}`, params };
 }
@@ -395,14 +395,17 @@ export async function listForDashboard(q: DashboardQuery = {}): Promise<any[]> {
   const orderBy =
     sort === 'date'
       ? 'c.consulted_at DESC, m.evaluation_id DESC'
-      : `m.risk_flagged DESC,
-         FIELD(m.status_label, '불완전판매 의심', '저점수', '정상'),
-         m.final_score ASC`;
+      : `COALESCE(r.risk_flagged_effective, m.risk_flagged) DESC,
+         FIELD(COALESCE(r.status_label_effective, m.status_label), '불완전판매 의심', '저점수', '정상'),
+         COALESCE(r.final_score_effective, m.final_score) ASC`;
   return query(
     `SELECT m.evaluation_id, c.consultation_code, c.agent_id,
             COALESCE(a.agent_name, c.agent_id) AS agent_name,
-            c.consulted_at, m.consult_type_ai, m.recommend_type, m.final_score,
-            m.risk_flagged, m.status_label, m.evaluated_at,
+            c.consulted_at, m.consult_type_ai, m.recommend_type,
+            COALESCE(r.final_score_effective, m.final_score) AS final_score,
+            COALESCE(r.risk_flagged_effective, m.risk_flagged) AS risk_flagged,
+            COALESCE(r.status_label_effective, m.status_label) AS status_label,
+            m.evaluated_at,
             COALESCE(r.review_status, '미검수') AS review_status
        FROM ai_evaluation_master m
        JOIN consultation_master c ON c.consultation_id = m.consultation_id
@@ -428,8 +431,10 @@ export async function countForDashboard(q: DashboardQuery = {}): Promise<{
   const where = dashboardWhere(q);
   const [totals, filtered] = await Promise.all([
     query<{ total_count: number; risk_count: number }>(
-      `SELECT COUNT(*) AS total_count, COALESCE(SUM(m.risk_flagged), 0) AS risk_count
+      `SELECT COUNT(*) AS total_count,
+              COALESCE(SUM(COALESCE(r.risk_flagged_effective, m.risk_flagged)), 0) AS risk_count
          FROM ai_evaluation_master m
+         LEFT JOIN evaluation_reviews r ON r.evaluation_id = m.evaluation_id
         WHERE m.evaluator = 'AI_최종'`,
     ),
     query<{ filtered_count: number }>(
