@@ -1,4 +1,5 @@
 import TabNav from "@/components/layout/TabNav";
+import NotificationBell from "@/components/layout/NotificationBell";
 import UserMenu from "@/components/auth/UserMenu";
 
 export default function WorkspaceLayout({
@@ -14,7 +15,10 @@ export default function WorkspaceLayout({
             <h1 className="text-base font-semibold tracking-tight">
               한빛생명 상담품질 자동채점 시스템
             </h1>
-            <UserMenu />
+            <div className="flex items-center gap-3">
+              <NotificationBell />
+              <UserMenu />
+            </div>
           </div>
           <TabNav />
         </div>

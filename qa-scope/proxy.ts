@@ -46,7 +46,12 @@ export default auth((req) => {
       if (pathname.startsWith('/evaluations') || pathname.startsWith('/agents')) {
         return NextResponse.redirect(new URL('/admin', req.url));
       }
-      if (pathname.startsWith('/api/evaluations') || pathname.startsWith('/api/agents')) {
+      if (
+        pathname.startsWith('/api/evaluations') ||
+        pathname.startsWith('/api/agents') ||
+        // 알림(★v9)은 화면①~④ 헤더 벨 전용 — MANAGER 기능이라 ADMIN 차단 대상.
+        pathname.startsWith('/api/notifications')
+      ) {
         return NextResponse.json(
           { error: 'forbidden', message: '권한 없음' },
           { status: 403 },

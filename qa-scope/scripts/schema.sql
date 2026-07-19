@@ -20,6 +20,7 @@
 --   4.   users                      로그인 계정 (★v6 신설 — NextAuth Credentials 대조 대상)
 --   5.   coaching_tips              코칭 팁 (★v7 신설 — 항목코드별 정적 문구, 관리자 편집 대상)
 --   6.   policy_documents           관리자 업로드 약관 문서 (★v8 신설 — RAG 재색인 이력)
+--   7.   notifications              불완전판매 의심 알림 (★v9 신설 — 채점 저장 직후 생성, 헤더 벨 폴링)
 --
 -- 파이프라인 전제:
 --   * 최종 평가는 상담당 AI 1건만 저장 (검증 통과본). 중간 시도·모니터링 AI의
@@ -86,6 +87,16 @@
 --     활성 컬렉션명은 app_config.rag_collection_name(시드: 'policy_v2')이 정본.
 --   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
 --     (4. users·5. coaching_tips와 동일 규약 — 별도 ALTER 블록 불요).
+--
+-- v9 변경 (2026-07-20 — 불완전판매 알림):
+--   * notifications 테이블 신설 — 채점 저장 직후 status_label='불완전판매 의심'인
+--     평가에 대해 파이프라인(lib/scoring/pipeline.ts)이 알림 행을 생성.
+--     type 컬럼 없음 — 알림 대상이 불완전판매 의심 하나뿐 (팀 결정 2026-07-20).
+--   * FK ON DELETE CASCADE 필수 — 업로드 상담(UP-%) 리셋 삭제 시
+--     consultation_master → ai_evaluation_master → notifications로 연쇄 삭제.
+--     재채점(정본교체)도 기존 평가 행 삭제로 옛 알림이 함께 정리된다.
+--   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
+--     (4.~6.과 동일 규약 — 별도 ALTER 블록 불요).
 -- =====================================================================
 
 -- 클라이언트 문자셋 고정 — docker-entrypoint-initdb.d 등 실행 환경의 로케일과
@@ -597,6 +608,38 @@ CREATE TABLE IF NOT EXISTS `policy_documents` (
   PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   COMMENT = '6. 관리자 업로드 약관 문서 — RAG 재색인 이력';
+
+-- ---------------------------------------------------------------------
+-- 7. notifications — 불완전판매 의심 알림 (★v9 신설)
+--    채점 파이프라인(lib/scoring/pipeline.ts)이 저장 완료 직후
+--    status_label='불완전판매 의심'(듀얼 라벨 포함 — ENUM 우선순위상 이 값으로
+--    저장됨, 저점수 단독 제외)인 평가에 대해서만 행을 생성한다.
+--    type 컬럼 없음 — 알림 대상이 불완전판매 의심 하나뿐 (팀 결정 2026-07-20).
+--    ⚠ ON DELETE CASCADE 필수 — 업로드 상담(UP-%) 리셋 삭제 시
+--      consultation_master → ai_evaluation_master → 여기까지 연쇄 삭제돼야 한다.
+--    message에는 상담코드·총점만 담는다 — 고객 발화 원문·PII 금지 (§13).
+--    CREATE TABLE IF NOT EXISTS 자체가 마이그레이션 (4.~6.과 동일 규약 —
+--    신설 테이블은 별도 ALTER 블록 불요, 재실행 안전).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `notifications` (
+  `notification_id` INT UNSIGNED NOT NULL AUTO_INCREMENT
+      COMMENT '알림 PK',
+  `evaluation_id`   INT UNSIGNED NOT NULL
+      COMMENT 'FK → ai_evaluation_master. 클릭 시 /evaluations/{id} 이동 연결고리',
+  `message`         VARCHAR(255) NOT NULL
+      COMMENT '알림 문구 — 상담코드·총점만 (고객 원문·PII 금지)',
+  `is_read`         TINYINT(1)   NOT NULL DEFAULT 0
+      COMMENT '읽음 여부 — 벨 드롭다운은 미읽음(0)만 노출',
+  `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`notification_id`),
+  INDEX `idx_notifications_unread` (`is_read`, `created_at`),
+  CONSTRAINT `fk_notification_evaluation`
+    FOREIGN KEY (`evaluation_id`)
+    REFERENCES `ai_evaluation_master` (`evaluation_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE = InnoDB
+  COMMENT = '7. 알림 — 불완전판매 의심 건 발생 (★v9, 헤더 벨 30초 폴링 대상)';
 
 -- =====================================================================
 -- v3 마이그레이션 — agents FK 전환 (기존 v2 DB 전용, 재실행 안전)

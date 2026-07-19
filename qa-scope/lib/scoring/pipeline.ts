@@ -7,6 +7,7 @@ import { validateOutput } from './validate'
 import { fillItemScores, calcAggregate } from './calculate'
 import { persistEvaluation } from '../db/persist'
 import type { PersistResult } from '../db/persist'
+import { createNotification } from '../db/notificationRepo'
 import * as configRepo from '../db/configRepo'
 import type { EvalOutput } from './types'
 
@@ -271,5 +272,26 @@ export async function scoreConsultation(
   console.log(
     `✓ MySQL 저장 완료: consultation_id=${persisted.consultationId}, evaluation_id=${persisted.evaluationId}`,
   )
+
+  // 13. 알림 — 불완전판매 의심 건만 INSERT (schema §7 ★v9).
+  //     판정은 방금 저장된 상태라벨 값을 그대로 읽는다(채점·라벨 로직 불변).
+  //     상태라벨 ENUM 우선순위(불완전판매 의심 > 저점수 — CLAUDE.md §8.3) 덕에
+  //     이 단일 비교가 듀얼 라벨(불완전판매+저점수) 포함 / 저점수 단독 제외를
+  //     정확히 가른다. INSERT 실패가 채점 저장을 막으면 안 되지만(저장은 이미
+  //     완료) 조용히 삼키지도 않는다 — console.error로 크게 남긴다.
+  if (final.집계.상태라벨 === '불완전판매 의심') {
+    try {
+      await createNotification(
+        persisted.evaluationId,
+        `불완전판매 의심 감지 — 상담 ${상담ID} (총점 ${final.집계.환산총점}점)`,
+      )
+    } catch (err) {
+      console.error(
+        `✗ 불완전판매 알림 INSERT 실패 (채점 저장은 완료됨): evaluation_id=${persisted.evaluationId}, 상담ID=${상담ID}`,
+        err,
+      )
+    }
+  }
+
   return final
 }
