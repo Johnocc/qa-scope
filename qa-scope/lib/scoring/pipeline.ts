@@ -107,108 +107,134 @@ export async function scoreConsultation(
   // 4. 유저 메시지 조립
   const userMessage = JSON.stringify({ 상담ID, 발화: utterances }, null, 2)
 
-  // 5. 1차 LLM 호출
-  const raw1 = await callLLM(systemPrompt, userMessage)
-  let parsed = cleanAndParse(raw1)
+  // 5~7. LLM 호출 → 파싱 → 전처리 → 스키마 검증 (최대 2회 시도).
+  //   파싱 실패든 스키마 검증 실패든 "형식 실패"는 전부 같은 재시도 우산 안 — 1회만 재시도.
+  let parsed: unknown = null
+  let failureKind: 'parse' | 'validate' | null = null
+  let validationErrors: unknown[] | null = null
 
-  // 6. 파싱 실패 시 1회 재시도
-  if (parsed === null) {
-    const retryMessage =
-      userMessage + '\n\n반드시 순수 JSON 하나만 출력. 설명·코드펜스 금지.'
-    const raw2 = await callLLM(systemPrompt, retryMessage)
-    parsed = cleanAndParse(raw2)
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    let message = userMessage
+    if (attempt === 2) {
+      let retryNote = '\n\n반드시 순수 JSON 하나만 출력. 설명·코드펜스 금지.'
+      if (failureKind === 'validate') {
+        retryNote +=
+          '\n\n직전 응답이 출력 스키마를 위반했다. 근거는 배열의 각 원소가 {대화ID, 인용문} 객체여야 하고, ' +
+          '모든 키 이름은 스키마 명세의 한글 표기와 정확히 일치해야 한다.\n' +
+          `위반 사례:\n${JSON.stringify(validationErrors?.slice(0, 3), null, 2)}`
+      }
+      message = userMessage + retryNote
+      console.warn('[pipeline] 형식 실패 — 재채점 1회:', failureKind)
+    }
+
+    const raw = await callLLM(systemPrompt, message)
+    parsed = cleanAndParse(raw)
+
     if (parsed === null) {
-      throw new Error(
-        'LLM 응답을 JSON으로 파싱할 수 없습니다 (재시도 포함 2회 실패)'
-      )
+      failureKind = 'parse'
+      continue
     }
-  }
 
-  // 전처리: 스키마에 없는/타입 안 맞는 필드 정리 (validateOutput 전)
-  if (parsed !== null && typeof parsed === 'object') {
-    const obj = parsed as Record<string, unknown>
+    // 전처리: 스키마에 없는/타입 안 맞는 필드 정리 (validateOutput 전) — 1·2차 시도 모두 동일 적용
+    if (parsed !== null && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>
 
-    // 항목평가: 여분 키 제거 + 코멘트 타입 정리
-    if (Array.isArray(obj['항목평가'])) {
-      for (const item of obj['항목평가']) {
-        if (item !== null && typeof item === 'object') {
-          const it = item as Record<string, unknown>
-          delete it['항목명']
-          delete it['상세판단']
-          // 코멘트가 문자열이 아니면 제거 (선택 필드)
-          if ('코멘트' in it && typeof it['코멘트'] !== 'string') {
-            delete it['코멘트']
+      // 항목평가: 여분 키 제거 + 코멘트 타입 정리
+      if (Array.isArray(obj['항목평가'])) {
+        for (const item of obj['항목평가']) {
+          if (item !== null && typeof item === 'object') {
+            const it = item as Record<string, unknown>
+            delete it['항목명']
+            delete it['상세판단']
+            // 코멘트가 문자열이 아니면 제거 (선택 필드)
+            if ('코멘트' in it && typeof it['코멘트'] !== 'string') {
+              delete it['코멘트']
+            }
           }
         }
       }
-    }
 
-    // 고객만족: null이면 제거 (선택 필드)
-    if (obj['고객만족'] === null) {
-      delete obj['고객만족']
-    }
-
-    // 위험플래그: 배열 아니면 빈 배열로
-    if (!Array.isArray(obj['위험플래그'])) {
-      obj['위험플래그'] = []
-    }
-    // 위험플래그[*].근거 → 문자열 정규화 (객체/배열 형식 대응)
-    for (const flag of obj['위험플래그'] as unknown[]) {
-      if (flag !== null && typeof flag === 'object') {
-        const f = flag as Record<string, unknown>
-        if (typeof f['근거'] !== 'string') {
-          f['근거'] = stringifyFlagEvidence(f['근거'])
-        }
+      // 고객만족: null이면 제거 (선택 필드)
+      if (obj['고객만족'] === null) {
+        delete obj['고객만족']
       }
-    }
 
-    // 평가메타: 통째 제거 (10단계에서 코드가 새로 조립해 덮어쓰므로 LLM 값은 불필요).
-    //   여분키 필터링 방식은 평가일시:null 같은 '허용 키의 잘못된 값'을 못 걸러
-    //   검증에서 죽었다(dummy_02). 통째 지우면 그 경로가 원천 차단된다.
-    delete obj['평가메타']
-
-    // ※ 요약·종합피드백은 LLM이 생성하는 콘텐츠라 코드가 재생성하지 않는다.
-    //   누락 시 ''로 백필하면 '빈 평가'가 그대로 저장되므로, 백필하지 않고
-    //   7단계 스키마 검증에서 의도적으로 실패시킨다. (빈 평가 저장 방지 — 재추가 금지)
-
-    // 판매정보.확인절차 영문 키 → 한글 키 정규화
-    if (obj['판매정보'] !== null && typeof obj['판매정보'] === 'object') {
-      const 판매정보 = obj['판매정보'] as Record<string, unknown>
-      if (typeof 판매정보['확인절차'] === 'object' && 판매정보['확인절차'] !== null) {
-        const 절차 = 판매정보['확인절차'] as Record<string, unknown>
-        const keyMap: Record<string, string> = {
-          purpose: '가입목적',
-          financial_status: '재정상황',
-          financialStatus: '재정상황',
-          existing_contract: '기존계약',
-          existingContract: '기존계약',
-        }
-        for (const [eng, kor] of Object.entries(keyMap)) {
-          if (eng in 절차) {
-            절차[kor] = 절차[eng]
-            delete 절차[eng]
+      // 위험플래그: 배열 아니면 빈 배열로
+      if (!Array.isArray(obj['위험플래그'])) {
+        obj['위험플래그'] = []
+      }
+      // 위험플래그[*].근거 → 문자열 정규화 (객체/배열 형식 대응)
+      for (const flag of obj['위험플래그'] as unknown[]) {
+        if (flag !== null && typeof flag === 'object') {
+          const f = flag as Record<string, unknown>
+          if (typeof f['근거'] !== 'string') {
+            f['근거'] = stringifyFlagEvidence(f['근거'])
           }
         }
       }
+
+      // 평가메타: 통째 제거 (10단계에서 코드가 새로 조립해 덮어쓰므로 LLM 값은 불필요).
+      //   여분키 필터링 방식은 평가일시:null 같은 '허용 키의 잘못된 값'을 못 걸러
+      //   검증에서 죽었다(dummy_02). 통째 지우면 그 경로가 원천 차단된다.
+      delete obj['평가메타']
+
+      // ※ 요약·종합피드백은 LLM이 생성하는 콘텐츠라 코드가 재생성하지 않는다.
+      //   누락 시 ''로 백필하면 '빈 평가'가 그대로 저장되므로, 백필하지 않고
+      //   스키마 검증에서 의도적으로 실패시킨다. (빈 평가 저장 방지 — 재추가 금지)
+
+      // 판매정보.확인절차 영문 키 → 한글 키 정규화
+      if (obj['판매정보'] !== null && typeof obj['판매정보'] === 'object') {
+        const 판매정보 = obj['판매정보'] as Record<string, unknown>
+        if (typeof 판매정보['확인절차'] === 'object' && 판매정보['확인절차'] !== null) {
+          const 절차 = 판매정보['확인절차'] as Record<string, unknown>
+          const keyMap: Record<string, string> = {
+            purpose: '가입목적',
+            financial_status: '재정상황',
+            financialStatus: '재정상황',
+            existing_contract: '기존계약',
+            existingContract: '기존계약',
+          }
+          for (const [eng, kor] of Object.entries(keyMap)) {
+            if (eng in 절차) {
+              절차[kor] = 절차[eng]
+              delete 절차[eng]
+            }
+          }
+        }
+      }
+
+      // 집계는 LLM 산수 미신뢰 원칙(§7-1)에 따라 9단계에서 코드가 재계산해
+      // 덮어쓴다. LLM이 계산을 틀려도(예: 환산총점>100) 검증 전에 죽지 않도록
+      // 스키마 통과용 중립 스텁으로 치환한다.
+      obj['집계'] = {
+        원점수합: 0,
+        적용배점합: 100,
+        환산총점: 0,
+        위험표시여부: false,
+        상태라벨: '정상',
+      }
     }
 
-    // 집계는 LLM 산수 미신뢰 원칙(§7-1)에 따라 9단계에서 코드가 재계산해
-    // 덮어쓴다. LLM이 계산을 틀려도(예: 환산총점>100) 검증 전에 죽지 않도록
-    // 스키마 통과용 중립 스텁으로 치환한다.
-    obj['집계'] = {
-      원점수합: 0,
-      적용배점합: 100,
-      환산총점: 0,
-      위험표시여부: false,
-      상태라벨: '정상',
+    // 7. 스키마 검증
+    const validation = validateOutput(parsed)
+    if (!validation.valid) {
+      failureKind = 'validate'
+      validationErrors = validation.errors
+      continue
     }
+
+    failureKind = null
+    break
   }
 
-  // 7. 스키마 검증
-  const validation = validateOutput(parsed)
-  if (!validation.valid) {
+  if (failureKind === 'parse') {
     throw new Error(
-      `스키마 검증 실패:\n${JSON.stringify(validation.errors, null, 2)}`
+      'LLM 응답을 JSON으로 파싱할 수 없습니다 (재시도 포함 2회 실패)'
+    )
+  }
+  if (failureKind === 'validate') {
+    throw new Error(
+      `스키마 검증 실패 (재시도 포함 2회 실패):\n${JSON.stringify(validationErrors, null, 2)}`
     )
   }
 
@@ -226,7 +252,7 @@ export async function scoreConsultation(
     'low_score_cut',
     Number(process.env.LOW_SCORE_CUT || 70),
   )
-  const { 집계, flags } = calcAggregate(filledItems, llmOutput.위험플래그, cutoff)
+  const { 집계, flags } = calcAggregate(filledItems, llmOutput.위험플래그, cutoff, llmOutput.판매정보?.매칭판정)
 
   // 10. 최종 객체 조립
   const final: EvalOutput = {
