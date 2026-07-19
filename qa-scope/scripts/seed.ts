@@ -37,6 +37,7 @@ type ConsultationType = '신규·보장' | '계약변경' | '해지·환급' | '
 
 interface SeedRow {
   code: string
+  fileKey: string
   agentId: string
   customerId: string
   consultedAt: string // 'YYYY-MM-DD HH:MM:SS'
@@ -65,13 +66,13 @@ const AGENT_ROWS: AgentInput[] = [
  * 고객은 개인정보를 저장하지 않고 식별자만 부여한다.
  */
 const SEED_ROWS: SeedRow[] = [
-  { code: 'dummy_01', agentId: 'AGT-001', customerId: 'CUST-1001', consultedAt: '2026-06-22 09:40:00', type: '신규·보장' },
-  { code: 'dummy_02', agentId: 'AGT-002', customerId: 'CUST-1002', consultedAt: '2026-06-23 14:15:00', type: '신규·보장' },
-  { code: 'dummy_03', agentId: 'AGT-003', customerId: 'CUST-1003', consultedAt: '2026-06-24 11:05:00', type: '해지·환급' },
-  { code: 'dummy_04', agentId: 'AGT-004', customerId: 'CUST-1004', consultedAt: '2026-06-25 16:30:00', type: '보험금청구' },
-  { code: 'dummy_05', agentId: 'AGT-005', customerId: 'CUST-1005', consultedAt: '2026-06-26 10:20:00', type: '계약변경' },
-  { code: 'dummy_06', agentId: 'AGT-002', customerId: 'CUST-1006', consultedAt: '2026-06-29 13:50:00', type: '단순문의' },
-  { code: 'dummy_07', agentId: 'AGT-006', customerId: 'CUST-1007', consultedAt: '2026-06-30 15:10:00', type: '신규·보장' },
+  { code: 'CS-20260622-0940', fileKey: 'dummy_01', agentId: 'AGT-001', customerId: 'CUST-1001', consultedAt: '2026-06-22 09:40:00', type: '신규·보장' },
+  { code: 'CS-20260623-1415', fileKey: 'dummy_02', agentId: 'AGT-002', customerId: 'CUST-1002', consultedAt: '2026-06-23 14:15:00', type: '신규·보장' },
+  { code: 'CS-20260624-1105', fileKey: 'dummy_03', agentId: 'AGT-003', customerId: 'CUST-1003', consultedAt: '2026-06-24 11:05:00', type: '해지·환급' },
+  { code: 'CS-20260625-1630', fileKey: 'dummy_04', agentId: 'AGT-004', customerId: 'CUST-1004', consultedAt: '2026-06-25 16:30:00', type: '보험금청구' },
+  { code: 'CS-20260626-1020', fileKey: 'dummy_05', agentId: 'AGT-005', customerId: 'CUST-1005', consultedAt: '2026-06-26 10:20:00', type: '계약변경' },
+  { code: 'CS-20260629-1350', fileKey: 'dummy_06', agentId: 'AGT-002', customerId: 'CUST-1006', consultedAt: '2026-06-29 13:50:00', type: '단순문의' },
+  { code: 'CS-20260630-1510', fileKey: 'dummy_07', agentId: 'AGT-006', customerId: 'CUST-1007', consultedAt: '2026-06-30 15:10:00', type: '신규·보장' },
 ]
 
 function addSeconds(base: string, offsetSec: number): string {
@@ -113,7 +114,7 @@ async function insertDialogues(consultationId: number, row: SeedRow, utterances:
 }
 
 async function seedOne(row: SeedRow, opts: { reset: boolean; withEval: boolean }) {
-  const transcriptPath = join(TRANSCRIPT_DIR, `${row.code}.txt`)
+  const transcriptPath = join(TRANSCRIPT_DIR, `${row.fileKey}.txt`)
   if (!existsSync(transcriptPath)) {
     console.warn(`⚠ ${row.code}: transcript 없음 (${transcriptPath}) — 건너뜀`)
     return { consultation: 'skipped' as const, evaluation: 'skipped' as const }
@@ -179,10 +180,10 @@ async function seedOne(row: SeedRow, opts: { reset: boolean; withEval: boolean }
 
   // outputs/의 기존 채점 결과가 있으면 평가까지 적재
   let evaluationResult: 'persisted' | 'skipped' | 'invalid' = 'skipped'
-  const jsonPath = join(OUTPUT_DIR, `${row.code}.json`)
+  const jsonPath = join(OUTPUT_DIR, `${row.fileKey}.json`)
   if (opts.withEval && existsSync(jsonPath)) {
     const result = JSON.parse(readFileSync(jsonPath, 'utf-8')) as EvalOutput
-    if (String(result.상담ID) !== row.code) {
+    if (String(result.상담ID) !== row.fileKey) {
       console.warn(`⚠ ${row.code}: outputs JSON의 상담ID='${result.상담ID}' 불일치 — 평가 적재 생략`)
       evaluationResult = 'invalid'
     } else {
