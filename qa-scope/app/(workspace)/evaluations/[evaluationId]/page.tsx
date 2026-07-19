@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getEvaluationDetail } from '@/lib/api/evaluations';
 import { ApiError } from '@/lib/api/client';
+import AudioPlayer from '@/components/evaluation-detail/AudioPlayer';
 import DialogueList from '@/components/evaluation-detail/DialogueList';
 import ItemScorePanel from '@/components/evaluation-detail/ItemScorePanel';
 import ReviewPanel from '@/components/evaluation-detail/ReviewPanel';
@@ -64,6 +65,7 @@ export default async function EvaluationDetailPage({
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-2">
         <div className="h-full overflow-y-auto border-r border-border scrollbar-hidden">
+          <AudioPlayer audioUrl={header.audio_url} />
           <DialogueList dialogues={dialogues} />
         </div>
         <div className="h-full overflow-y-auto">

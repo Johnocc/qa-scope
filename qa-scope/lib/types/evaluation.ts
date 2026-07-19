@@ -149,6 +149,7 @@ export interface EvaluationDetailHeader {
   consult_type: string | null;
   risk_flagged: boolean;
   status_labels: string[];
+  audio_url?: string | null;
 }
 
 // ---------------------------------------------------------------------

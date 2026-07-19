@@ -45,6 +45,7 @@ export async function GET(
       agent_name: agent?.agent_name ?? (agentId === 'unknown' ? '미배정' : agentId),
       consulted_at: consultation?.consulted_at ?? null,
       consult_type: evaluation.분류?.상담유형 ?? null,
+      audio_url: consultation?.audio_url ?? null,
       risk_flagged: Boolean(evaluation.집계?.위험표시여부),
       status_labels: computeStatusLabels(
         evaluation.집계?.상태라벨,
