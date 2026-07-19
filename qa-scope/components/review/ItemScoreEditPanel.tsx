@@ -68,7 +68,7 @@ export default function ItemScoreEditPanel({
           }
 
           return (
-            <div key={code} id={`edit-item-${code}`} className="scroll-mt-4">
+            <div key={code} id={`item-${code}`} className="scroll-mt-4">
               {showDomainHeader && (
                 <div className="px-1 pb-1 pt-2 text-xs font-semibold text-sub">
                   {domain}. {DOMAIN_NAMES[domain]}
