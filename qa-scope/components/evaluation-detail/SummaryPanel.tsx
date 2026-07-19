@@ -1,6 +1,10 @@
+'use client';
+
 import { ITEM_NAMES, type ItemCode } from '@/lib/constants/rubric';
+import { expectedScore } from '@/lib/scoring/constants';
 import type { EvaluationItemScore } from '@/lib/types/evaluation';
 import StatusBadge from '@/components/common/StatusBadge';
+import { useReviewOverrides } from '@/components/review/ReviewOverridesProvider';
 
 interface SummaryPanelProps {
   items: EvaluationItemScore[];
@@ -8,7 +12,23 @@ interface SummaryPanelProps {
   labels: string[];
 }
 
+/**
+ * items는 편집 중인 override(useReviewOverrides)를 반영한 화면 미리보기용
+ * 병합값이다 — 저장/영속/API 전송에는 쓰지 않는다(서버 재계산이 정본).
+ * score·labels는 여기서 건드리지 않는다(호출부의 COALESCE 값 그대로).
+ */
 export default function SummaryPanel({ items, score, labels }: SummaryPanelProps) {
+  const { overrides } = useReviewOverrides();
+  const effectiveItems = items.map((it) => {
+    const overrideEntry = overrides.get(it.항목코드 as ItemCode);
+    if (!overrideEntry) return it;
+    return {
+      ...it,
+      충족수준: overrideEntry.level_override,
+      획득점수: expectedScore(overrideEntry.level_override, it.배점),
+    };
+  });
+
   return (
     <div className="mb-4 rounded-card border border-border bg-surface-card px-6 py-5">
       <div className="flex gap-8">
@@ -22,7 +42,7 @@ export default function SummaryPanel({ items, score, labels }: SummaryPanelProps
           </div>
         </div>
         <div className="flex-1 space-y-0.5">
-          {items.map((it) => {
+          {effectiveItems.map((it) => {
             const isNA = it.충족수준 === '해당없음';
             const isFail = it.충족수준 === '미충족';
             return (
