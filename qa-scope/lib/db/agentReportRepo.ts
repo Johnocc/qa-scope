@@ -208,11 +208,12 @@ async function fetchSummaryStats(agentId: string, fromDate: string | null) {
     `SELECT
        COUNT(*)                                                    AS total_cnt,
        COALESCE(SUM(c.agent_id = ?), 0)                            AS agent_cnt,
-       AVG(CASE WHEN c.agent_id = ? THEN m.final_score END)        AS agent_avg,
-       COALESCE(SUM(m.risk_flagged), 0)                            AS total_risk,
-       COALESCE(SUM(CASE WHEN c.agent_id = ? THEN m.risk_flagged END), 0) AS agent_risk
+       AVG(CASE WHEN c.agent_id = ? THEN COALESCE(r.final_score_effective, m.final_score) END) AS agent_avg,
+       COALESCE(SUM(COALESCE(r.risk_flagged_effective, m.risk_flagged)), 0) AS total_risk,
+       COALESCE(SUM(CASE WHEN c.agent_id = ? THEN COALESCE(r.risk_flagged_effective, m.risk_flagged) END), 0) AS agent_risk
      FROM ai_evaluation_master m
      JOIN consultation_master c ON c.consultation_id = m.consultation_id
+     LEFT JOIN evaluation_reviews r ON r.evaluation_id = m.evaluation_id
      WHERE m.evaluator = 'AI_최종' ${p.sql}`,
     [agentId, agentId, agentId, ...p.params],
   )
@@ -435,11 +436,12 @@ export async function buildAgentsSummary(period: Period): Promise<AgentsSummary>
       first_date: string | null
     }>(
       `SELECT COUNT(*) AS cnt,
-              AVG(m.final_score) AS avg_score,
-              COALESCE(SUM(m.risk_flagged), 0) AS risk_cnt,
+              AVG(COALESCE(r.final_score_effective, m.final_score)) AS avg_score,
+              COALESCE(SUM(COALESCE(r.risk_flagged_effective, m.risk_flagged)), 0) AS risk_cnt,
               DATE_FORMAT(MIN(c.consulted_at), '%Y-%m-%d') AS first_date
          FROM ai_evaluation_master m
          JOIN consultation_master c ON c.consultation_id = m.consultation_id
+         LEFT JOIN evaluation_reviews r ON r.evaluation_id = m.evaluation_id
         WHERE m.evaluator = 'AI_최종' ${p.sql}`,
       p.params,
     ),
@@ -454,11 +456,12 @@ export async function buildAgentsSummary(period: Period): Promise<AgentsSummary>
       `SELECT c.agent_id,
               a.agent_name,
               COUNT(*) AS cnt,
-              AVG(m.final_score) AS avg_score,
-              COALESCE(SUM(m.risk_flagged), 0) AS risk_cnt
+              AVG(COALESCE(r.final_score_effective, m.final_score)) AS avg_score,
+              COALESCE(SUM(COALESCE(r.risk_flagged_effective, m.risk_flagged)), 0) AS risk_cnt
          FROM ai_evaluation_master m
          JOIN consultation_master c ON c.consultation_id = m.consultation_id
          LEFT JOIN agents a ON a.agent_id = c.agent_id
+         LEFT JOIN evaluation_reviews r ON r.evaluation_id = m.evaluation_id
         WHERE m.evaluator = 'AI_최종' ${p.sql}
         GROUP BY c.agent_id, a.agent_name`,
       p.params,
