@@ -230,14 +230,24 @@ async function fetchDomainRates(agentId: string, fromDate: string | null) {
     a_applied: number
   }>(
     `SELECT
-       LEFT(d.item_code, 1)             AS domain_code,
-       SUM(d.earned_score)              AS a_earned,
-       SUM(d.max_score)                 AS a_max,
-       COUNT(DISTINCT d.evaluation_id)  AS a_applied
+       LEFT(d.item_code, 1) AS domain_code,
+       -- 정본은 lib/scoring/constants.ts expectedScore(level, maxScore) — SQL 집계
+       -- 특성상 재기술. 배점 규칙이 바뀌면 반드시 이 CASE도 같이 고칠 것.
+       SUM(CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음'
+                THEN CASE COALESCE(o.level_override, d.level)
+                       WHEN '충족' THEN d.max_score
+                       WHEN '부분충족' THEN d.max_score / 2
+                       ELSE 0
+                     END
+                ELSE 0 END)                                                          AS a_earned,
+       SUM(CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음' THEN d.max_score ELSE 0 END) AS a_max,
+       COUNT(DISTINCT CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음' THEN d.evaluation_id END) AS a_applied
      FROM ai_evaluation_details d
      JOIN ai_evaluation_master m ON m.evaluation_id = d.evaluation_id
      JOIN consultation_master c ON c.consultation_id = m.consultation_id
-     WHERE m.evaluator = 'AI_최종' AND c.agent_id = ? AND d.level <> '해당없음' ${p.sql}
+     LEFT JOIN evaluation_reviews r ON r.evaluation_id = d.evaluation_id
+     LEFT JOIN evaluation_review_overrides o ON o.review_id = r.review_id AND o.item_code = d.item_code
+     WHERE m.evaluator = 'AI_최종' AND c.agent_id = ? ${p.sql}
      GROUP BY domain_code`,
     [agentId, ...p.params],
   )
@@ -254,12 +264,22 @@ async function fetchItemStats(agentId: string, fromDate: string | null) {
   }>(
     `SELECT
        d.item_code,
-       COALESCE(SUM(d.level <> '해당없음'), 0) AS applied_count,
-       COALESCE(SUM(d.level = '해당없음'), 0)  AS na_count,
-       AVG(CASE WHEN d.level <> '해당없음' THEN d.earned_score END) AS avg_earned
+       COALESCE(SUM(COALESCE(o.level_override, d.level) <> '해당없음'), 0) AS applied_count,
+       COALESCE(SUM(COALESCE(o.level_override, d.level) = '해당없음'), 0)  AS na_count,
+       -- 정본은 lib/scoring/constants.ts expectedScore(level, maxScore) — SQL 집계
+       -- 특성상 재기술. 배점 규칙이 바뀌면 반드시 이 CASE도 같이 고칠 것.
+       AVG(CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음'
+                THEN CASE COALESCE(o.level_override, d.level)
+                       WHEN '충족' THEN d.max_score
+                       WHEN '부분충족' THEN d.max_score / 2
+                       ELSE 0
+                     END
+           END) AS avg_earned
      FROM ai_evaluation_details d
      JOIN ai_evaluation_master m ON m.evaluation_id = d.evaluation_id
      JOIN consultation_master c ON c.consultation_id = m.consultation_id
+     LEFT JOIN evaluation_reviews r ON r.evaluation_id = d.evaluation_id
+     LEFT JOIN evaluation_review_overrides o ON o.review_id = r.review_id AND o.item_code = d.item_code
      WHERE m.evaluator = 'AI_최종' AND c.agent_id = ? ${p.sql}
      GROUP BY d.item_code`,
     [agentId, ...p.params],
@@ -475,12 +495,22 @@ export async function buildAgentsSummary(period: Period): Promise<AgentsSummary>
     }>(
       `SELECT c.agent_id,
               LEFT(d.item_code, 1) AS domain_code,
-              SUM(d.earned_score) AS earned,
-              SUM(d.max_score) AS max_sum
+              -- 정본은 lib/scoring/constants.ts expectedScore(level, maxScore) — SQL 집계
+              -- 특성상 재기술. 배점 규칙이 바뀌면 반드시 이 CASE도 같이 고칠 것.
+              SUM(CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음'
+                       THEN CASE COALESCE(o.level_override, d.level)
+                              WHEN '충족' THEN d.max_score
+                              WHEN '부분충족' THEN d.max_score / 2
+                              ELSE 0
+                            END
+                       ELSE 0 END) AS earned,
+              SUM(CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음' THEN d.max_score ELSE 0 END) AS max_sum
          FROM ai_evaluation_details d
          JOIN ai_evaluation_master m ON m.evaluation_id = d.evaluation_id
          JOIN consultation_master c ON c.consultation_id = m.consultation_id
-        WHERE m.evaluator = 'AI_최종' AND d.level <> '해당없음' ${p.sql}
+         LEFT JOIN evaluation_reviews r ON r.evaluation_id = d.evaluation_id
+         LEFT JOIN evaluation_review_overrides o ON o.review_id = r.review_id AND o.item_code = d.item_code
+        WHERE m.evaluator = 'AI_최종' ${p.sql}
         GROUP BY c.agent_id, domain_code`,
       p.params,
     ),
