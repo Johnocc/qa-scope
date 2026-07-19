@@ -17,6 +17,7 @@
 --                                   (①형식검증 → ②인용 원문대조(코드) → ③내용 교차검증(2차 LLM))
 --   3-F. evaluation_reviews         검수 헤더 (★v5 신설 — 사람 검수: 확정·코멘트·유효 집계)
 --   3-G. evaluation_review_overrides 항목별 충족수준 수정 (★v5 신설 — AI 원본 불변 레이어)
+--   3-H. evaluation_review_history  검수 이력 스냅샷 (★v10 신설 — ver1/ver2 조회용)
 --   4.   users                      로그인 계정 (★v6 신설 — NextAuth Credentials 대조 대상)
 --   5.   coaching_tips              코칭 팁 (★v7 신설 — 항목코드별 정적 문구, 관리자 편집 대상)
 --   6.   policy_documents           관리자 업로드 약관 문서 (★v8 신설 — RAG 재색인 이력)
@@ -508,6 +509,35 @@ CREATE TABLE IF NOT EXISTS `evaluation_review_overrides` (
     ON UPDATE CASCADE
 ) ENGINE = InnoDB
   COMMENT = '3-G. 항목별 충족수준 수정 — AI 원본 불변 검수 레이어 (★v5)';
+
+-- ---------------------------------------------------------------------
+-- 3-H. evaluation_review_history — 검수 이력 스냅샷 (★v10 신설)
+--    evaluation_reviews/evaluation_review_overrides는 UNIQUE 제약상 평가당
+--    검수 1건만 유지(덮어쓰기) — ver1/ver2 등 과거 검수본을 조회하려면
+--    이 테이블에 저장 시점 전문을 버전별로 쌓는다. 검수가 삭제되더라도
+--    (evaluation_id) FK만 유지 — 검수 삭제와 무관하게 평가에 귀속.
+--    CREATE TABLE IF NOT EXISTS 자체가 마이그레이션 (4. users 등과 동일 규약 —
+--    신설 테이블은 별도 ALTER 블록 불요, 재실행 안전).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `evaluation_review_history` (
+  `history_id`    INT UNSIGNED NOT NULL AUTO_INCREMENT
+      COMMENT '검수 이력 PK',
+  `evaluation_id` INT UNSIGNED NOT NULL
+      COMMENT 'FK → ai_evaluation_master. 검수 삭제와 무관하게 평가에 귀속',
+  `version_no`    INT UNSIGNED NOT NULL
+      COMMENT 'ver 번호. MAX+1 채번, 1부터 재시작 금지',
+  `snapshot`      JSON NOT NULL
+      COMMENT '저장 시점 검수 전문 스냅샷',
+  `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`history_id`),
+  UNIQUE INDEX `uq_history_version` (`evaluation_id`, `version_no`),
+  CONSTRAINT `fk_history_evaluation`
+    FOREIGN KEY (`evaluation_id`)
+    REFERENCES `ai_evaluation_master` (`evaluation_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE = InnoDB
+  COMMENT = '3-H. 검수 이력 스냅샷 — ver1/ver2 조회용 (★v10)';
 
 -- ---------------------------------------------------------------------
 -- (선택) 앱 설정 테이블 — 70점 컷 하드코딩 방지
