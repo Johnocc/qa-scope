@@ -108,10 +108,13 @@ export async function upsertReview(
   //    원본 플래그는 항상 보존 — 기술 부채로 기록).
   const aiLevelByCode = new Map<ItemCode, Level>(details.map((d) => [d.item_code, d.level]));
   const overrideByCode = new Map<ItemCode, OverrideInput>(overrides.map((o) => [o.item_code, o]));
-  const effectiveItems = ITEM_CODES.map((code) => ({
-    항목코드: code,
-    충족수준: overrideByCode.get(code)?.level_override ?? aiLevelByCode.get(code),
-  }));
+  const effectiveItems = ITEM_CODES.map((code) => {
+    const level = overrideByCode.get(code)?.level_override ?? aiLevelByCode.get(code);
+    if (level === undefined) {
+      throw new Error(`평가 상세 누락: evaluation_id=${evaluationId}, item_code=${code}`);
+    }
+    return { 항목코드: code, 충족수준: level };
+  });
   const baseFlags = flags.map((f) => ({ 규칙번호: f.rule_number }));
   const effectiveFlags = deriveCodeFlags(effectiveItems, baseFlags, matchingVerdict);
   const cut = await configRepo.getNumber('low_score_cut', DEFAULT_LOW_SCORE_CUT);
