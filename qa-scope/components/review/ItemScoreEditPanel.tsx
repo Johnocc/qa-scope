@@ -26,7 +26,16 @@ export default function ItemScoreEditPanel({
   return (
     <div className="bg-surface-muted">
       <div className="border-b border-border-subtle px-4 py-2 text-sm font-semibold">
-        {readOnly ? '검수 확정 내역' : '항목별 점수 수정'}
+        {readOnly ? (
+          '검수 확정 내역'
+        ) : (
+          <>
+            항목별 점수 수정
+            <span className="ml-2 text-xs font-normal text-sub">
+              충족수준을 수정하면 점수·라벨은 저장 시 자동 재계산됩니다
+            </span>
+          </>
+        )}
       </div>
       <div className="space-y-2.5 p-4">
         {ITEM_CODES.map((code) => {
@@ -80,7 +89,6 @@ export default function ItemScoreEditPanel({
                       </>
                     )}
                   </div>
-                  <span className="shrink-0 text-xs text-sub">저장 시 재계산</span>
                 </div>
 
                 <div className="mt-2 flex flex-wrap gap-1.5">
