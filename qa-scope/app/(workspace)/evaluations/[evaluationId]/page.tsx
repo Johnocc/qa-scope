@@ -4,11 +4,11 @@ import { getEvaluationDetail } from '@/lib/api/evaluations';
 import { ApiError } from '@/lib/api/client';
 import AudioPlayer from '@/components/evaluation-detail/AudioPlayer';
 import DialogueList from '@/components/evaluation-detail/DialogueList';
-import ItemScorePanel from '@/components/evaluation-detail/ItemScorePanel';
 import ReviewPanel from '@/components/evaluation-detail/ReviewPanel';
-import SaleInfoPanel from '@/components/evaluation-detail/SaleInfoPanel';
-import SummaryPanel from '@/components/evaluation-detail/SummaryPanel';
+import ReviewHistoryList from '@/components/evaluation-detail/ReviewHistoryList';
 import RiskDot from '@/components/common/RiskDot';
+import { ReviewOverridesProvider } from '@/components/review/ReviewOverridesProvider';
+import ScorePanelTabs from '@/components/review/ScorePanelTabs';
 
 export default async function EvaluationDetailPage({
   params,
@@ -27,7 +27,7 @@ export default async function EvaluationDetailPage({
     }
     throw err;
   }
-  const { header, evaluation, dialogues, review } = detailResult;
+  const { header, evaluation, dialogues, review, reviewHistory } = detailResult;
 
   // 화면 표시값 = COALESCE(검수 유효값, AI 원본) — 검수_쓰기_API계약_v1.md §4,
   // 화면② 계약 v1.1. 검수 없으면(review: null) AI 원본 그대로.
@@ -63,18 +63,27 @@ export default async function EvaluationDetailPage({
           <RiskDot active={displayRisk} />
         </div>
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-2">
-        <div className="h-full overflow-y-auto border-r border-border scrollbar-hidden">
-          <AudioPlayer audioUrl={header.audio_url} />
-          <DialogueList dialogues={dialogues} />
+      <ReviewOverridesProvider>
+        <div className="grid min-h-0 flex-1 grid-cols-2">
+          <div className="h-full overflow-y-auto border-r border-border scrollbar-hidden">
+            <AudioPlayer audioUrl={header.audio_url} />
+            <DialogueList dialogues={dialogues} />
+          </div>
+          <div className="h-full overflow-y-auto">
+            <ScorePanelTabs
+              items={evaluation.항목평가}
+              locked={review?.review_status === '확정'}
+              score={displayScore}
+              labels={displayLabels}
+              saleInfo={evaluation.판매정보}
+            />
+          </div>
         </div>
-        <div className="h-full overflow-y-auto">
-          <SummaryPanel items={evaluation.항목평가} score={displayScore} labels={displayLabels} />
-          {evaluation.판매정보 && <SaleInfoPanel saleInfo={evaluation.판매정보} />}
-          <ItemScorePanel items={evaluation.항목평가} />
+        <div className="max-h-[40vh] shrink-0 overflow-y-auto">
+          <ReviewPanel evaluationId={id} review={review} />
+          <ReviewHistoryList history={reviewHistory} />
         </div>
-      </div>
-      <ReviewPanel evaluationId={id} review={review} />
+      </ReviewOverridesProvider>
     </div>
   );
 }

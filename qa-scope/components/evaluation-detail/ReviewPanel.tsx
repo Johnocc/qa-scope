@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { putReview, deleteReview } from '@/lib/api/evaluations';
 import type { Review } from '@/lib/types/evaluation';
+import { useReviewOverrides } from '@/components/review/ReviewOverridesProvider';
 
 /**
  * 검수 3상태 UI (검수개정안 v2): 미검수(review=null) / 검수중 / 확정.
@@ -12,7 +13,7 @@ import type { Review } from '@/lib/types/evaluation';
  * 확정 상태는 입력란을 잠근다: 고치려면 철회가 먼저다. 확정 철회는 재채점
  * 스킵 보호가 풀리는 행위라 2차 확인을 거친다 (검수_쓰기_API계약_v1.md 결정 3).
  *
- * v0 범위만 — 항목별 점수수정(overrides)은 연기 v1 범위라 UI 없음 (계약 §1 결정 1).
+ * overrides = 항목별 충족수준 수정(ver2 검수, useReviewOverrides 컨텍스트). 점수는 서버 재계산.
  * 저장/철회 성공 시 router.refresh()로 서버 컴포넌트가 review·COALESCE된
  * 표시값을 다시 그리게 한다.
  */
@@ -24,6 +25,7 @@ export default function ReviewPanel({
   review: Review | null;
 }) {
   const router = useRouter();
+  const { toOverrideInputArray } = useReviewOverrides();
   const [reviewer, setReviewer] = useState(review?.reviewer ?? '');
   const [comment, setComment] = useState(review?.review_comment ?? '');
   const [pending, setPending] = useState<'save' | 'confirm' | 'withdraw' | null>(null);
@@ -46,6 +48,7 @@ export default function ReviewPanel({
         review_status: status,
         reviewer: reviewer.trim(),
         review_comment: comment.trim() || null,
+        overrides: toOverrideInputArray(),
       });
       setJustConfirmed(status === '확정');
       router.refresh();

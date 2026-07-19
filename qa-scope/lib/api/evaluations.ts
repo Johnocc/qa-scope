@@ -6,6 +6,7 @@ import type {
   Review,
   ReviewStatus,
 } from '../types/evaluation';
+import type { OverrideInput } from '../db/reviewRepo';
 
 /**
  * 화면① 목록. 실 API가 계약대로 {meta,summary,items}를 반환 — 쿼리 그대로 전달.
@@ -39,12 +40,16 @@ export async function getEvaluationDetail(
 
 /**
  * 검수 저장(업서트) — 클라이언트 컴포넌트 전용(브라우저에서 상대경로 fetch).
- * v0 범위: review_status(검수중/확정) + reviewer + review_comment만.
- * overrides(항목별 점수수정)는 연기 v1 범위라 UI 미제공 — 계약 §1 결정 1 단계개방.
+ * overrides = 항목별 충족수준 수정(ver2 검수). 점수는 서버 재계산.
  */
 export async function putReview(
   evaluationId: number,
-  body: { review_status: ReviewStatus; reviewer: string; review_comment: string | null },
+  body: {
+    review_status: ReviewStatus;
+    reviewer: string;
+    review_comment: string | null;
+    overrides?: OverrideInput[];
+  },
 ): Promise<Review> {
   const res = await fetch(`/api/evaluations/${evaluationId}/review`, {
     method: 'PUT',
