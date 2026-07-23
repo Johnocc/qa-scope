@@ -21,7 +21,7 @@
 --   4.   users                      로그인 계정 (★v6 신설 — NextAuth Credentials 대조 대상)
 --   5.   coaching_tips              코칭 팁 (★v7 신설 — 항목코드별 정적 문구, 관리자 편집 대상)
 --   6.   policy_documents           관리자 업로드 약관 문서 (★v8 신설 — RAG 재색인 이력)
---   7.   notifications              불완전판매 의심 알림 (★v9 신설 — 채점 저장 직후 생성, 헤더 벨 폴링)
+--   7.   notifications              불완전판매 의심 알림 (★v9-b 신설 — 채점 저장 직후 생성, 헤더 벨 폴링)
 --
 -- 파이프라인 전제:
 --   * 최종 평가는 상담당 AI 1건만 저장 (검증 통과본). 중간 시도·모니터링 AI의
@@ -89,7 +89,12 @@
 --   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
 --     (4. users·5. coaching_tips와 동일 규약 — 별도 ALTER 블록 불요).
 --
--- v9 변경 (2026-07-20 — 불완전판매 알림):
+-- v9-a 변경 (audio_url, 커밋 9da3f46 — 당시 이력 문단 누락분 소급 기재):
+--   * consultation_master에 audio_url 컬럼 추가 — 상담 녹음 파일 URL(Vercel Blob).
+--     화면②에서 audio_url 있으면 재생 플레이어 표시. 마이그레이션 블록(맨 아래
+--     "v9 마이그레이션" 조건부 ALTER)은 당시부터 있었으나 이 서술 문단이 누락돼 있었다.
+--
+-- v9-b 변경 (2026-07-20 — 불완전판매 알림, feat/alarm 브랜치):
 --   * notifications 테이블 신설 — 채점 저장 직후 status_label='불완전판매 의심'인
 --     평가에 대해 파이프라인(lib/scoring/pipeline.ts)이 알림 행을 생성.
 --     type 컬럼 없음 — 알림 대상이 불완전판매 의심 하나뿐 (팀 결정 2026-07-20).
@@ -98,6 +103,20 @@
 --     재채점(정본교체)도 기존 평가 행 삭제로 옛 알림이 함께 정리된다.
 --   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
 --     (4.~6.과 동일 규약 — 별도 ALTER 블록 불요).
+--
+-- v10 변경 (evaluation_review_history, 커밋 a587b40 — 당시 이력 문단 누락분 소급 기재):
+--   * evaluation_review_history(3-H) 테이블 신설 — evaluation_reviews/
+--     evaluation_review_overrides가 UNIQUE 제약상 평가당 검수 1건만 유지(덮어쓰기)해
+--     ver1/ver2 등 과거 검수본을 못 보므로, 저장 시점 전문을 버전별로 스냅샷.
+--     신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션(별도 ALTER 불요).
+--
+-- v11 변경 — v9(notifications) 병합 + 이력 정리 통합:
+--   * origin/feat/alarm 브랜치(v9-b notifications)를 develop에 병합.
+--   * 병합을 계기로 변경이력 서술에서 누락돼 있던 v9-a(audio_url)·v10
+--     (evaluation_review_history) 문단을 소급 기재 — "v9"가 우리 쪽 audio_url과
+--     feat/alarm 쪽 notifications 양쪽에서 독립적으로 쓰였던 번호 중복을 v9-a/v9-b로
+--     구분 정리했다. CREATE TABLE·마이그레이션 블록의 실제 SQL은 무변경 —
+--     이 정리는 이력 문서화 보강일 뿐이다.
 -- =====================================================================
 
 -- 클라이언트 문자셋 고정 — docker-entrypoint-initdb.d 등 실행 환경의 로케일과

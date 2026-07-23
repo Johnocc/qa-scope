@@ -17,10 +17,11 @@
 --                                   (①형식검증 → ②인용 원문대조(코드) → ③내용 교차검증(2차 LLM))
 --   3-F. evaluation_reviews         검수 헤더 (★v5 신설 — 사람 검수: 확정·코멘트·유효 집계)
 --   3-G. evaluation_review_overrides 항목별 충족수준 수정 (★v5 신설 — AI 원본 불변 레이어)
+--   3-H. evaluation_review_history  검수 이력 스냅샷 (★v10 신설 — ver1/ver2 조회용)
 --   4.   users                      로그인 계정 (★v6 신설 — NextAuth Credentials 대조 대상)
 --   5.   coaching_tips              코칭 팁 (★v7 신설 — 항목코드별 정적 문구, 관리자 편집 대상)
 --   6.   policy_documents           관리자 업로드 약관 문서 (★v8 신설 — RAG 재색인 이력)
---   7.   notifications              불완전판매 의심 알림 (★v9 신설 — 채점 저장 직후 생성, 헤더 벨 폴링)
+--   7.   notifications              불완전판매 의심 알림 (★v9-b 신설 — 채점 저장 직후 생성, 헤더 벨 폴링)
 --
 -- 파이프라인 전제:
 --   * 최종 평가는 상담당 AI 1건만 저장 (검증 통과본). 중간 시도·모니터링 AI의
@@ -88,7 +89,12 @@
 --   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
 --     (4. users·5. coaching_tips와 동일 규약 — 별도 ALTER 블록 불요).
 --
--- v9 변경 (2026-07-20 — 불완전판매 알림):
+-- v9-a 변경 (audio_url, 커밋 9da3f46 — 당시 이력 문단 누락분 소급 기재):
+--   * consultation_master에 audio_url 컬럼 추가 — 상담 녹음 파일 URL(Vercel Blob).
+--     화면②에서 audio_url 있으면 재생 플레이어 표시. 마이그레이션 블록(맨 아래
+--     "v9 마이그레이션" 조건부 ALTER)은 당시부터 있었으나 이 서술 문단이 누락돼 있었다.
+--
+-- v9-b 변경 (2026-07-20 — 불완전판매 알림, feat/alarm 브랜치):
 --   * notifications 테이블 신설 — 채점 저장 직후 status_label='불완전판매 의심'인
 --     평가에 대해 파이프라인(lib/scoring/pipeline.ts)이 알림 행을 생성.
 --     type 컬럼 없음 — 알림 대상이 불완전판매 의심 하나뿐 (팀 결정 2026-07-20).
@@ -97,6 +103,20 @@
 --     재채점(정본교체)도 기존 평가 행 삭제로 옛 알림이 함께 정리된다.
 --   * 신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션
 --     (4.~6.과 동일 규약 — 별도 ALTER 블록 불요).
+--
+-- v10 변경 (evaluation_review_history, 커밋 a587b40 — 당시 이력 문단 누락분 소급 기재):
+--   * evaluation_review_history(3-H) 테이블 신설 — evaluation_reviews/
+--     evaluation_review_overrides가 UNIQUE 제약상 평가당 검수 1건만 유지(덮어쓰기)해
+--     ver1/ver2 등 과거 검수본을 못 보므로, 저장 시점 전문을 버전별로 스냅샷.
+--     신설 테이블이라 CREATE TABLE IF NOT EXISTS 자체가 마이그레이션(별도 ALTER 불요).
+--
+-- v11 변경 — v9(notifications) 병합 + 이력 정리 통합:
+--   * origin/feat/alarm 브랜치(v9-b notifications)를 develop에 병합.
+--   * 병합을 계기로 변경이력 서술에서 누락돼 있던 v9-a(audio_url)·v10
+--     (evaluation_review_history) 문단을 소급 기재 — "v9"가 우리 쪽 audio_url과
+--     feat/alarm 쪽 notifications 양쪽에서 독립적으로 쓰였던 번호 중복을 v9-a/v9-b로
+--     구분 정리했다. CREATE TABLE·마이그레이션 블록의 실제 SQL은 무변경 —
+--     이 정리는 이력 문서화 보강일 뿐이다.
 -- =====================================================================
 
 -- 클라이언트 문자셋 고정 — docker-entrypoint-initdb.d 등 실행 환경의 로케일과
@@ -166,6 +186,8 @@ CREATE TABLE IF NOT EXISTS `consultation_master` (
   `consultation_type` ENUM('신규·보장','계약변경','해지·환급','보험금청구','단순문의')
                                        NULL DEFAULT NULL
       COMMENT '상담 유형. 입력 시점에 있으면 채움, 없으면 NULL(AI 분류 결과는 3-A에 별도 저장)',
+  `audio_url`         VARCHAR(500)     NULL DEFAULT NULL
+      COMMENT '상담 녹음 파일 URL (Vercel Blob) (★v9 신설)',
   `created_at`        DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`consultation_id`),
   UNIQUE INDEX `uq_consultation_code` (`consultation_code`),
@@ -519,6 +541,35 @@ CREATE TABLE IF NOT EXISTS `evaluation_review_overrides` (
   COMMENT = '3-G. 항목별 충족수준 수정 — AI 원본 불변 검수 레이어 (★v5)';
 
 -- ---------------------------------------------------------------------
+-- 3-H. evaluation_review_history — 검수 이력 스냅샷 (★v10 신설)
+--    evaluation_reviews/evaluation_review_overrides는 UNIQUE 제약상 평가당
+--    검수 1건만 유지(덮어쓰기) — ver1/ver2 등 과거 검수본을 조회하려면
+--    이 테이블에 저장 시점 전문을 버전별로 쌓는다. 검수가 삭제되더라도
+--    (evaluation_id) FK만 유지 — 검수 삭제와 무관하게 평가에 귀속.
+--    CREATE TABLE IF NOT EXISTS 자체가 마이그레이션 (4. users 등과 동일 규약 —
+--    신설 테이블은 별도 ALTER 블록 불요, 재실행 안전).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `evaluation_review_history` (
+  `history_id`    INT UNSIGNED NOT NULL AUTO_INCREMENT
+      COMMENT '검수 이력 PK',
+  `evaluation_id` INT UNSIGNED NOT NULL
+      COMMENT 'FK → ai_evaluation_master. 검수 삭제와 무관하게 평가에 귀속',
+  `version_no`    INT UNSIGNED NOT NULL
+      COMMENT 'ver 번호. MAX+1 채번, 1부터 재시작 금지',
+  `snapshot`      JSON NOT NULL
+      COMMENT '저장 시점 검수 전문 스냅샷',
+  `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`history_id`),
+  UNIQUE INDEX `uq_history_version` (`evaluation_id`, `version_no`),
+  CONSTRAINT `fk_history_evaluation`
+    FOREIGN KEY (`evaluation_id`)
+    REFERENCES `ai_evaluation_master` (`evaluation_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE = InnoDB
+  COMMENT = '3-H. 검수 이력 스냅샷 — ver1/ver2 조회용 (★v10)';
+
+-- ---------------------------------------------------------------------
 -- (선택) 앱 설정 테이블 — 70점 컷 하드코딩 방지
 --    인수인계 v14: "컷값은 코드 하드코딩 말고 설정 파라미터로" 반영.
 -- ---------------------------------------------------------------------
@@ -739,6 +790,26 @@ SET @ddl := IF(@role_exists = 0,
      COMMENT ''계정 역할 — MANAGER=QA매니저(채점·검수 운영), ADMIN=관리자(설정·계정 정책, 채점 실행 권한 없음)''
      AFTER `display_name`',
   'SELECT ''role 컬럼 이미 존재 — 건너뜀''');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================================================
+-- v9 마이그레이션 — consultation_master에 audio_url 컬럼 추가 (재실행 안전)
+--   상담 녹음 파일 URL(Vercel Blob) 보관용. 신규 DB는 위 CREATE TABLE에
+--   반영되면 no-op, 기존 DB는 CREATE TABLE IF NOT EXISTS가 건너뛰므로
+--   여기서 이행한다.
+-- =====================================================================
+SET @audio_url_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'qa_scope'
+     AND TABLE_NAME = 'consultation_master'
+     AND COLUMN_NAME = 'audio_url'
+);
+SET @ddl := IF(@audio_url_exists = 0,
+  'ALTER TABLE `consultation_master`
+     ADD COLUMN `audio_url` VARCHAR(500) NULL DEFAULT NULL
+     COMMENT ''상담 녹음 파일 URL (Vercel Blob)''
+     AFTER `consultation_type`',
+  'SELECT ''audio_url 컬럼 이미 존재 — 건너뜀''');
 PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET SQL_MODE=@OLD_SQL_MODE;
