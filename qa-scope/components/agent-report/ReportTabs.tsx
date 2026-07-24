@@ -51,7 +51,15 @@ export default function ReportTabs({
 
       {tab === 'summary' && (
         <div className="grid grid-cols-2 items-stretch gap-4 px-6 py-4">
-          <div className="rounded-card border border-border bg-surface-card p-4">
+          {/*
+            차트 카드에 명시적 높이(h-[400px])를 준다 — compact RadarChart는
+            maintainAspectRatio:false라 컨테이너 높이를 그대로 따라가므로, 높이를
+            고정하지 않으면 오각형 크기가 옆 '개선 필요 항목' 패널의 내용 높이에
+            끌려다녀(짧으면 작아짐) 가변적이 된다. 고정 높이로 이웃과 분리해
+            오각형을 항상 크게 유지한다(눈금 숫자 가독성도 함께 개선). items-stretch
+            덕에 짧은 패널은 같은 높이로 늘어나 두 카드가 나란히 정렬된다.
+          */}
+          <div className="h-[400px] rounded-card border border-border bg-surface-card p-4">
             <RadarChart domainRates={domainRates} compact />
           </div>
           <div className="rounded-card border border-border bg-surface-card">
