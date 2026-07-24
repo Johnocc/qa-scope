@@ -124,6 +124,9 @@ export interface AgentReport {
   }
   // v1.2(2026-07-08): 순위·팀 비교 필드(rank·agent_count·team_avg_score·team_rate) 제거 —
   // 코칭 도구 철학(줄세우기 배제). 재도입 여지는 계약 §6 참조 (git 이력에서 복원).
+  // v1.4(2026-07-24): 그중 domain_rates[].team_rate만 재도입 — 스파이더 차트에
+  // "본인 vs 팀" 오버레이(점선) 표시용. 순위·rank·agent_count·team_avg_score는
+  // 그대로 미도입(줄세우기 배제 원칙 유지). 팀 = 본인·미배정(unknown) 제외 (계약 §3.3).
   summary: {
     evaluation_count: number
     total_evaluation_count: number
@@ -136,6 +139,8 @@ export interface AgentReport {
     domain_code: DomainCode
     domain_name: string
     rate: number | null
+    /** 팀(본인·미배정 제외) 영역 획득률(%). v1.4 재도입 — 스파이더 팀 평균 오버레이용. 적용 0건이면 null */
+    team_rate: number | null
     applied_count: number
   }[]
   items: {
@@ -220,7 +225,10 @@ async function fetchSummaryStats(agentId: string, fromDate: string | null) {
   return rows[0]
 }
 
-/** ② 영역별 획득률 — 본인만, N/A 제외 (계약 §4. 팀 획득률은 v1.2에서 제거) */
+/** ② 영역별 획득률 — 본인 + 팀(본인·미배정 제외)을 조건부 집계로 한 번에, N/A 제외 (계약 §4).
+ *  팀 획득률(t_*)은 v1.4에서 스파이더 "본인 vs 팀" 오버레이용으로 재도입 (계약 §3.3·§6).
+ *  본인 필터를 WHERE에서 빼고 CASE로 본인/팀을 가른다 — 두 계열이 같은 기간·같은
+ *  검수 오버라이드 기준을 공유해 화면③(전체 집계)과도 어긋나지 않는다. */
 async function fetchDomainRates(agentId: string, fromDate: string | null) {
   const p = periodClause(fromDate)
   return query<{
@@ -228,28 +236,39 @@ async function fetchDomainRates(agentId: string, fromDate: string | null) {
     a_earned: number | null
     a_max: number | null
     a_applied: number
+    t_earned: number | null
+    t_max: number | null
   }>(
     `SELECT
        LEFT(d.item_code, 1) AS domain_code,
        -- 정본은 lib/scoring/constants.ts expectedScore(level, maxScore) — SQL 집계
        -- 특성상 재기술. 배점 규칙이 바뀌면 반드시 이 CASE도 같이 고칠 것.
-       SUM(CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음'
+       SUM(CASE WHEN c.agent_id = ? AND COALESCE(o.level_override, d.level) <> '해당없음'
                 THEN CASE COALESCE(o.level_override, d.level)
                        WHEN '충족' THEN d.max_score
                        WHEN '부분충족' THEN d.max_score / 2
                        ELSE 0
                      END
                 ELSE 0 END)                                                          AS a_earned,
-       SUM(CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음' THEN d.max_score ELSE 0 END) AS a_max,
-       COUNT(DISTINCT CASE WHEN COALESCE(o.level_override, d.level) <> '해당없음' THEN d.evaluation_id END) AS a_applied
+       SUM(CASE WHEN c.agent_id = ? AND COALESCE(o.level_override, d.level) <> '해당없음' THEN d.max_score ELSE 0 END) AS a_max,
+       COUNT(DISTINCT CASE WHEN c.agent_id = ? AND COALESCE(o.level_override, d.level) <> '해당없음' THEN d.evaluation_id END) AS a_applied,
+       -- 팀 = 본인·미배정(unknown) 제외 (계약 §3.3 v1.4: "본인 vs 팀" 비교)
+       SUM(CASE WHEN c.agent_id <> ? AND c.agent_id <> 'unknown' AND COALESCE(o.level_override, d.level) <> '해당없음'
+                THEN CASE COALESCE(o.level_override, d.level)
+                       WHEN '충족' THEN d.max_score
+                       WHEN '부분충족' THEN d.max_score / 2
+                       ELSE 0
+                     END
+                ELSE 0 END)                                                          AS t_earned,
+       SUM(CASE WHEN c.agent_id <> ? AND c.agent_id <> 'unknown' AND COALESCE(o.level_override, d.level) <> '해당없음' THEN d.max_score ELSE 0 END) AS t_max
      FROM ai_evaluation_details d
      JOIN ai_evaluation_master m ON m.evaluation_id = d.evaluation_id
      JOIN consultation_master c ON c.consultation_id = m.consultation_id
      LEFT JOIN evaluation_reviews r ON r.evaluation_id = d.evaluation_id
      LEFT JOIN evaluation_review_overrides o ON o.review_id = r.review_id AND o.item_code = d.item_code
-     WHERE m.evaluator = 'AI_최종' AND c.agent_id = ? ${p.sql}
+     WHERE m.evaluator = 'AI_최종' ${p.sql}
      GROUP BY domain_code`,
-    [agentId, ...p.params],
+    [agentId, agentId, agentId, agentId, agentId, ...p.params],
   )
 }
 
@@ -330,10 +349,13 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
   const domain_rates: AgentReport['domain_rates'] = DOMAIN_CODES.map((code) => {
     const r = domainByCode.get(code)
     const hasAgent = r != null && r.a_max != null && Number(r.a_max) > 0
+    const hasTeam = r != null && r.t_max != null && Number(r.t_max) > 0
     return {
       domain_code: code,
       domain_name: DOMAIN_NAMES[code],
       rate: hasAgent ? round1((Number(r!.a_earned) / Number(r!.a_max)) * 100) : null,
+      // 팀 평균 오버레이(v1.4) — 본인·미배정 제외 집계. 적용 0건이면 null(차트 꼭짓점 비움)
+      team_rate: hasTeam ? round1((Number(r!.t_earned) / Number(r!.t_max)) * 100) : null,
       applied_count: r?.a_applied ?? 0,
     }
   })

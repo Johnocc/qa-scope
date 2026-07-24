@@ -39,6 +39,7 @@
 | 6 | **소수 처리** | 비율·평균은 소수 1자리 반올림한 JSON number (예: `81.3`) |
 | 7 | **순위·팀 비교 제거 (v1.2)** | 화면③·④는 인사고과가 아니라 **코칭 도구** — 순위 줄세우기가 아니라 약점 진단 중심 (팀 결정 2026-07-08). `summary.rank`·`summary.agent_count`·`summary.team_avg_score`·`domain_rates[].team_rate`(팀 평균 점선) 제거. **스파이더 차트는 본인 값만** 그린다 |
 | 8 | **전체 대비 표기는 응답 유지·화면 보류 (v1.2)** | 상단 요약의 "전체 N건 중 M건" 표기(표본 표기)는 현재 데이터 규모에서 무의미해 화면에서 제외. 다만 `total_evaluation_count`·`total_risk_count` **응답 필드는 유지** — 재도입 여부 미정이라 데이터가 쌓이면 화면만 복원하면 됨 (서버 무수정) |
+| 9 | **스파이더 팀 평균 오버레이만 재도입 (v1.4)** | 결정 7에서 걷어낸 팀 비교 중 **`domain_rates[].team_rate`(스파이더 팀 평균 점선)만** 부활 — "본인 vs 팀" 약점 코칭 비교용. **팀 = 본인·미배정(`unknown`) 제외** 상담사 전체의 영역 획득률(§4 수식, 검수 유효값 반영). `summary.team_avg_score`·`rank`·`agent_count`는 **재도입하지 않음** — 순위 줄세우기 배제 원칙(결정 7)은 유지하고, 스파이더에 참고선 하나만 얹는 것은 진단 도구 성격과 충돌하지 않는다는 판단 (팀 결정 2026-07-24) |
 
 ---
 
@@ -67,7 +68,7 @@ GET /api/agents/{agent_id}/report?period=30d
 |---|---|
 | `meta` | 헤더(상담사명·기간)·임계값 |
 | `summary` | 상단 통계 카드 3개(건수·평균·위험) + 약점 배지 |
-| `domain_rates` | 스파이더 차트 (5영역, **본인만** — v1.2) |
+| `domain_rates` | 스파이더 차트 (5영역, 본인 + **팀 평균 오버레이** — v1.4) |
 | `items` | 항목별 상세 표 (18개) |
 | `improvement_items` | 개선 필요 항목 박스 |
 
@@ -115,20 +116,24 @@ GET /api/agents/{agent_id}/report?period=30d
   ※ C는 영역명(`domain_name`)과 동일 문구로 통일. **C 영역에 '경청' 키워드
   사용 금지** — A영역(A3 경청 및 용건·니즈 파악)과 겹침 (팀 결정 2026-07-09, v1.3)
 
-### 3.3 `domain_rates` — 스파이더 차트 (항상 5개, A→E 순 — **본인 값만**)
+### 3.3 `domain_rates` — 스파이더 차트 (항상 5개, A→E 순 — 본인 + 팀 평균 오버레이)
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | `domain_code` | string | `"A"`~`"E"` |
 | `domain_name` | string | 예: `"상담 도입"` |
 | `rate` | number\|null | 본인 획득률(%) = Σ획득점수 ÷ Σ배점 × 100 (**N/A 제외**, §4). 적용 0건이면 `null` |
-| `applied_count` | number | 이 영역 항목이 1개 이상 적용된 평가 건수 |
+| `team_rate` | number\|null | **팀 평균 획득률(%)** — 본인·미배정(`unknown`) 제외 상담사 전체를 같은 §4 수식으로 집계. 스파이더 팀 평균 점선용. 팀 적용 0건이면 `null` (**v1.4 재도입**) |
+| `applied_count` | number | 이 영역 항목이 1개 이상 적용된 평가 건수 (본인 기준) |
 
-> **v1.2에서 제거된 필드:** `team_rate` (팀 평균 점선 — 결정 7.
-> 팀 비교는 개인 리포트에 넣을 개념이 아님).
+> **필드 이력:** `team_rate`는 v1.2(결정 7)에서 "순위 줄세우기 배제" 취지로 제거됐다가,
+> v1.4(결정 9)에서 **팀 평균 점선(오버레이)** 한 계열로만 재도입됐다. 순위·`rank`·
+> `agent_count`·`summary.team_avg_score`는 여전히 내려주지 않는다.
+> 팀 정의는 **본인·미배정 제외** — "나 vs 동료 평균" 비교가 목적.
 
-> 차트에서 `rate: null`인 영역은 0으로 그리지 말 것 (0점과 "평가 상황 없음"은 다름).
+> 차트에서 `rate`/`team_rate`가 `null`인 영역은 0으로 그리지 말 것 (0점과 "평가 상황 없음"은 다름).
 > Chart.js는 데이터에 `null`을 주면 해당 꼭짓점을 비워서 그린다.
+> `team_rate`가 전 영역 `null`이면(예: 상담사가 1명뿐인 데이터) 프론트는 팀 계열을 그리지 않는다.
 
 ### 3.4 `items` — 항목별 상세 (항상 18개, A1→E2 루브릭 순)
 
@@ -190,8 +195,12 @@ GET /api/agents/{agent_id}/report?period=30d
 
 - 반올림: `round(x × 10) / 10` (소수 1자리) — 계산 마지막에 1회만.
 - 전체 카운트(`total_evaluation_count`·`total_risk_count`)는 같은 기간 조건을 전체 평가 건에 적용.
-  (v1.2: 팀 평균·팀 획득률 계산은 제거 — 결정 7. 화면③의 전체·상담사별 수치는
+  (v1.2: 팀 평균 점수·팀 획득률 계산 제거 — 결정 7. 화면③의 전체·상담사별 수치는
   이 §4 수식을 정본으로 공유한다 — 화면③ 계약 §1 결정 2)
+- **팀 영역 획득률(`domain_rates[].team_rate`) — v1.4 재도입 (결정 9):** 위 "영역 획득률" 수식을
+  **본인·미배정(`unknown`) 제외** 상담사 전체에 적용. 본인 `rate`와 동일한 기간·N/A 제외·검수
+  유효값(`level_override`) 기준을 공유하므로, 같은 조건이라면 화면③의 전체/상담사별 집계와도
+  어긋나지 않는다. `summary.team_avg_score`(팀 평균 점수 카드)는 재도입하지 않는다.
 - 데이터 원천: `ai_evaluation_details`(level·max_score·earned_score) ×
   `ai_evaluation_master`(final_score·risk_flagged) × `consultation_master`(agent_id·consulted_at).
 
@@ -226,10 +235,11 @@ GET /api/agents/{agent_id}/report?period=30d
       `lib/db/agentReportRepo.ts`에서 팀 평균·팀 획득률·RANK 집계 삭제,
       예시 응답 `schemas/agent-report.v1.example.json`은 2026-07-08 선반영.
       `rank`·`agent_count`는 확정 삭제)
-- [ ] 팀 비교(`team_avg_score`·`team_rate`) **재도입 여지 있음** (2026-07-09 결정) —
-      추후 여유 시 "본인 vs 팀" 비교 기능으로 부활 가능. 재도입 시
-      계약 버전 업(필드 복원 명시) → git 이력에서 서버 구현 복원 → 스텁 갱신 순서로.
-      화면③ 대시보드의 전체 집계(같은 수식)도 참고 구현이 됨
+- [x] 팀 비교 중 `domain_rates[].team_rate` **재도입 완료** (v1.4 — 2026-07-24, 결정 9).
+      스파이더 "본인 vs 팀" 오버레이(점선)로만 부활. 팀 = 본인·미배정 제외, 검수 유효값 반영
+      (`lib/db/agentReportRepo.ts` `fetchDomainRates` 조건부 집계 + `buildAgentReport`,
+      프론트 `RadarChart.tsx` 팀 계열·범례, 타입 `lib/types/agent.ts`, 스텁 갱신).
+      `summary.team_avg_score`·`rank`·`agent_count`는 **재도입하지 않음**(순위 줄세우기 배제 유지)
 - [ ] 화면④ 목업(`docs/mocksup/화면4_상담사평가리포트_목업.html`)이 아직 v1 필드
       (팀 점선·순위 카드·팀 평균 부제)를 그림 — FE 이식 시 v1.2 스텁 기준으로 갱신
 - [ ] 표본 표기("전체 N건 중 M건") 재도입 여부 결정 — 현재 보류
@@ -247,3 +257,4 @@ GET /api/agents/{agent_id}/report?period=30d
 | v1.1 | 2026-07-05 | `weak_domain` 보완 — 최저 영역 달성률이 `item_rate_ok` 이상이면 `null`(약점 없음). 구현 중 발견: 전 영역 100% 상담사에게 동률 tie-break로 D영역 배지가 달리는 문제 방지 |
 | v1.2 | 2026-07-08 | **코칭 도구 철학 반영** (인사고과·순위 줄세우기 배제, 약점 진단 중심 — 화면③ 공통). ① 필드 제거: `summary.rank`·`summary.agent_count`·`summary.team_avg_score`·`domain_rates[].team_rate`(팀 평균 점선) — 스파이더 차트는 본인 값만. ② 표본 표기("전체 N건 중 M건")는 화면에서 제외하되 `total_evaluation_count`·`total_risk_count` 응답 필드는 유지(재도입 보류). ③ '코멘트 남기기' 버튼 제거(화면②와 기능 중복) — UI 전용 요소라 이 계약의 필드에는 영향 없음. 유지 확정: 요약 카드(건수·평균·위험)·약점 배지·개선 필요 항목·18항목 표·스파이더(본인)·PDF·기간 필터 |
 | v1.3 | 2026-07-09 | 약점 라벨 C 영역 통일 — `공감·경청` → `태도·공감` (영역명과 동일 문구). 이유: '경청'이 A영역(A3) 키워드와 겹침. 화면③ 계약 결정 4·화면② 영역명 주석·서버 상수 `WEAK_LABELS`(`lib/db/agentReportRepo.ts`)에 동시 반영 |
+| v1.4 | 2026-07-24 | **스파이더 팀 평균 오버레이 재도입** (결정 9). `domain_rates[].team_rate` 필드 부활 — 개인 리포트 스파이더 차트에 "본인 vs 팀 평균" 점선을 겹쳐 약점 코칭 비교를 돕는다. 팀 = **본인·미배정(`unknown`) 제외** 상담사 전체, §4 수식·검수 유효값 공유. v1.2에서 함께 제거됐던 `summary.team_avg_score`·`rank`·`agent_count`는 재도입하지 않음(순위 줄세우기 배제 원칙 유지). 반영: 서버 `fetchDomainRates` 조건부 집계, 프론트 `RadarChart` 팀 계열·범례, 타입·스텁 |

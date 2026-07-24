@@ -7,6 +7,10 @@
  * 제거됐다 (코칭 도구 철학 — 인사고과 아님). 이 타입은 그 최신 계약 기준이라
  * 저 필드는 없다. 실제 API가 과도기적으로 그 필드를 더 내려주더라도(백엔드
  * 미반영 상태) 여기서 타입에 없으니 프론트는 그냥 참조하지 않는다.
+ *
+ * v1.4(2026-07-24)에서 domain_rates[].team_rate만 재도입 — 스파이더 차트에
+ * "본인 vs 팀" 오버레이(점선)를 그리기 위함. team_avg_score·rank·agent_count는
+ * 여전히 미도입(순위 줄세우기 배제 원칙 유지).
  */
 
 export type DomainCode = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -57,6 +61,8 @@ export interface DomainRate {
   domain_code: DomainCode;
   domain_name: string;
   rate: number | null;
+  /** 팀(본인·미배정 제외) 영역 획득률(%). v1.4 재도입 — 스파이더 팀 평균 오버레이용. 적용 0건이면 null */
+  team_rate: number | null;
   applied_count: number;
 }
 
