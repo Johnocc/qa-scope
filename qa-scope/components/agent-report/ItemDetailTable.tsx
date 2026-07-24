@@ -34,7 +34,7 @@ export default function ItemDetailTable({ items }: { items: AgentReportItem[] })
                   </td>
                 </tr>
               )}
-              <tr className="border-t border-border-subtle">
+              <tr className={`border-t border-border-subtle ${it.tip ? 'border-b-0' : ''}`}>
                 <td className="px-4 py-3">
                   {it.item_code}. {it.item_name}
                 </td>
@@ -44,6 +44,16 @@ export default function ItemDetailTable({ items }: { items: AgentReportItem[] })
                 <td className={`px-4 py-3 font-medium ${STATUS_STYLE[it.status] ?? ''}`}>{it.status}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{it.applied_count}</td>
               </tr>
+              {/* 개선 필요 항목의 코칭 팁 — top-5 개선항목 박스에 못 든 '외 N건'도 여기서 확인 (v1.5) */}
+              {it.tip && (
+                <tr>
+                  <td colSpan={4} className="px-4 pb-3 pt-0">
+                    <div className="rounded-control border border-warn-border bg-warn-bg px-3 py-2 text-xs text-sub">
+                      <span className="font-medium text-warn-text">코칭 팁</span> {it.tip}
+                    </div>
+                  </td>
+                </tr>
+              )}
             </Fragment>
           );
         })}
