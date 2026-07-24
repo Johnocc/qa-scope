@@ -148,6 +148,7 @@ GET /api/agents/{agent_id}/report?period=30d
 | `avg_earned` | number\|null | 적용 건들의 획득점수 평균. `applied_count=0`이면 `null` |
 | `rate` | number\|null | `avg_earned ÷ max_score × 100`. `applied_count=0`이면 `null` |
 | `status` | string | `"양호"` / `"보통"` / `"개선 필요"` / `"해당없음"` (서버가 `thresholds`로 판정) |
+| `tip` | string\|null | **개선 필요(`rate < item_rate_warn`) 항목의 코칭 팁.** 그 외 상태는 `null`. `improvement_items[].tip`과 동일 문구(항목코드별 정적 매핑). **v1.5 추가** — top-5 `improvement_items` 박스에 못 든 '외 N건' 항목의 팁도 이 18항목 표에서 확인할 수 있게 함께 내려준다 |
 
 **N/A 전달 방식 (팀 결정):** 항목을 배열에서 빼지 않는다.
 적용 건수가 0인 항목은 이렇게 내려온다:
@@ -177,6 +178,11 @@ GET /api/agents/{agent_id}/report?period=30d
 `rate < thresholds.item_rate_warn`에 해당하는 **전체** 항목 수(5개 초과분 포함). `improvement_items`는
 여전히 최대 5개만 반환하므로, 프론트는 `improvement_items_total_count > improvement_items.length`일 때
 "외 N건 더"를 표시해 목록이 잘려 있음을 사용자가 오인하지 않게 한다 (팀장 UI 컨펌 피드백 B, 2026-07-13).
+
+> **'외 N건'의 코칭 팁 (v1.5):** `improvement_items`는 최대 5개라 그 팁도 5개까지만 담긴다.
+> 6번째 이하 개선 항목의 팁이 어디서도 안 보이던 문제를 없애기 위해, §3.4 `items[].tip`에
+> **개선 필요 상태 항목 전부의 팁**을 실어 18항목 표에서 확인할 수 있게 했다. "외 N건 더" 안내는
+> 이 표(웹은 '항목별 달성률' 탭, PDF는 아래 항목별 상세)로 유도한다.
 
 ---
 
@@ -258,3 +264,4 @@ GET /api/agents/{agent_id}/report?period=30d
 | v1.2 | 2026-07-08 | **코칭 도구 철학 반영** (인사고과·순위 줄세우기 배제, 약점 진단 중심 — 화면③ 공통). ① 필드 제거: `summary.rank`·`summary.agent_count`·`summary.team_avg_score`·`domain_rates[].team_rate`(팀 평균 점선) — 스파이더 차트는 본인 값만. ② 표본 표기("전체 N건 중 M건")는 화면에서 제외하되 `total_evaluation_count`·`total_risk_count` 응답 필드는 유지(재도입 보류). ③ '코멘트 남기기' 버튼 제거(화면②와 기능 중복) — UI 전용 요소라 이 계약의 필드에는 영향 없음. 유지 확정: 요약 카드(건수·평균·위험)·약점 배지·개선 필요 항목·18항목 표·스파이더(본인)·PDF·기간 필터 |
 | v1.3 | 2026-07-09 | 약점 라벨 C 영역 통일 — `공감·경청` → `태도·공감` (영역명과 동일 문구). 이유: '경청'이 A영역(A3) 키워드와 겹침. 화면③ 계약 결정 4·화면② 영역명 주석·서버 상수 `WEAK_LABELS`(`lib/db/agentReportRepo.ts`)에 동시 반영 |
 | v1.4 | 2026-07-24 | **스파이더 팀 평균 오버레이 재도입** (결정 9). `domain_rates[].team_rate` 필드 부활 — 개인 리포트 스파이더 차트에 "본인 vs 팀 평균" 점선을 겹쳐 약점 코칭 비교를 돕는다. 팀 = **본인·미배정(`unknown`) 제외** 상담사 전체, §4 수식·검수 유효값 공유. v1.2에서 함께 제거됐던 `summary.team_avg_score`·`rank`·`agent_count`는 재도입하지 않음(순위 줄세우기 배제 원칙 유지). 반영: 서버 `fetchDomainRates` 조건부 집계, 프론트 `RadarChart` 팀 계열·범례, 타입·스텁 |
+| v1.5 | 2026-07-24 | **개선 필요 항목 코칭 팁을 18항목 표에도 노출** — `items[].tip` 필드 추가. 기존엔 팁이 최대 5개 `improvement_items`에만 있어, "외 N건"(6번째 이하) 개선 항목의 코칭 팁을 어디서도 볼 수 없던 문제 해결(웹·PDF 공통). 개선 필요(`rate < item_rate_warn`) 상태 항목에만 팁을 싣고 그 외는 `null`. 함께: 웹 요약 탭도 실제 `improvement_items_total_count`를 받아 "외 N건 더"를 표시(기존엔 표시된 개수를 그대로 넘겨 안내가 안 뜸)하고, 그 안내가 '항목별 달성률' 탭으로 전환되도록 정리. 반영: 서버 `buildAgentReport` items 팁, 프론트 `ItemDetailTable`·`ImprovementItems`·`ReportTabs`, 타입·스텁 |

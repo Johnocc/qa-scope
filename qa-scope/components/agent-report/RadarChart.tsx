@@ -67,7 +67,18 @@ export default function RadarChart({
           r: {
             min: 0,
             max: 100,
-            ticks: { stepSize: 20, backdropColor: 'transparent' },
+            // 눈금 숫자(20·40·60·80·100)는 레이더 특성상 정중앙 위쪽 축 위에 고정
+            // 배치돼 데이터 점·선에 가린다 — 좌우/아래로 옮기는 네이티브 옵션이 없어,
+            // Chart.js 표준 해법인 라벨 배경판(카드색 흰 배경)을 깔아 숫자를 선 위로
+            // 또렷하게 분리한다. 기존 backdropColor:'transparent'는 이 기능을 꺼둔 상태였다.
+            ticks: {
+              stepSize: 20,
+              showLabelBackdrop: true,
+              backdropColor: 'rgba(255, 255, 255, 0.85)',
+              backdropPadding: 3,
+              color: '#6B7280',
+              font: { size: 11 },
+            },
             grid: { color: '#e7e2d3' },
             angleLines: { color: '#e7e2d3' },
             pointLabels: { color: '#26251f', font: { size: 12, weight: 600 } },

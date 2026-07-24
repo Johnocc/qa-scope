@@ -22,10 +22,13 @@ const TABS: { value: Tab; label: string }[] = [
 export default function ReportTabs({
   domainRates,
   improvementItems,
+  improvementItemsTotalCount,
   items,
 }: {
   domainRates: DomainRate[];
   improvementItems: ImprovementItem[];
+  /** rate < warn 전체 개선대상 수(5개 초과분 포함) — 요약 탭 '외 N건 더' 표기용 */
+  improvementItemsTotalCount: number;
   items: AgentReportItem[];
 }) {
   const [tab, setTab] = useState<Tab>('summary');
@@ -64,7 +67,13 @@ export default function ReportTabs({
           </div>
           <div className="rounded-card border border-border bg-surface-card">
             <div className="border-b border-border-subtle px-4 py-2 text-sm font-medium">개선 필요 항목</div>
-            <ImprovementItems items={shownImprovementItems} totalCount={shownImprovementItems.length} />
+            {/* 실제 전체 개선대상 수를 넘겨 '외 N건 더'가 뜨게 하고(요약은 상위 3건만
+                미리보기), 클릭 시 '항목별 달성률' 탭으로 전환해 나머지 항목·코칭 팁을 보게 한다. */}
+            <ImprovementItems
+              items={shownImprovementItems}
+              totalCount={improvementItemsTotalCount}
+              onSeeMore={() => setTab('items')}
+            />
           </div>
         </div>
       )}

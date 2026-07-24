@@ -91,6 +91,7 @@ export default async function AgentReportPage({
       <ReportTabs
         domainRates={report.domain_rates}
         improvementItems={report.improvement_items}
+        improvementItemsTotalCount={report.improvement_items_total_count}
         items={report.items}
       />
 

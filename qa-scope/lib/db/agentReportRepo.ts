@@ -153,6 +153,9 @@ export interface AgentReport {
     avg_earned: number | null
     rate: number | null
     status: '양호' | '보통' | '개선 필요' | '해당없음'
+    /** 개선 필요(rate < item_rate_warn) 항목의 코칭 팁. 그 외 상태는 null (계약 §3.4, v1.5).
+     *  top-5 improvement_items에 못 든 '외 N건'의 팁도 18항목 표에서 확인 가능하게 함께 내려준다. */
+    tip: string | null
   }[]
   improvement_items: {
     item_code: ItemCode
@@ -375,6 +378,7 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
       appliedCount > 0 && r?.avg_earned != null
         ? round1((Number(r.avg_earned) / MAX_SCORES[code]) * 100)
         : null
+    const status = statusOf(rate)
     return {
       item_code: code,
       item_name: ITEM_NAMES[code],
@@ -384,7 +388,10 @@ export async function buildAgentReport(agentId: string, period: Period): Promise
       na_count: r?.na_count ?? 0,
       avg_earned: avgEarned,
       rate,
-      status: statusOf(rate),
+      status,
+      // 개선 필요 항목의 코칭 팁을 18항목 표에도 실어, top-5 improvement_items에
+      // 못 든 '외 N건'의 팁까지 항목별 상세에서 볼 수 있게 한다 (v1.5).
+      tip: status === '개선 필요' ? (tips[code] ?? null) : null,
     }
   })
 

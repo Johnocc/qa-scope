@@ -76,6 +76,8 @@ export interface AgentReportItem {
   avg_earned: number | null;
   rate: number | null;
   status: ItemStatus;
+  /** 개선 필요(rate < item_rate_warn) 항목의 코칭 팁. 그 외 상태는 null (v1.5). 항목별 상세 표에서 '외 N건' 팁 확인용 */
+  tip: string | null;
 }
 
 export interface ImprovementItem {
