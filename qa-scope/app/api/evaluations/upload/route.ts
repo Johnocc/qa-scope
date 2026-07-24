@@ -29,19 +29,15 @@ const DROPPED_LINE_RATIO_LIMIT = 0.5; // 인식 실패 줄이 전체의 50% 초�
 const MAX_AUDIO_SIZE = 3.5 * 1024 * 1024; // 3.5MB — 음성 파일(선택) 상한, MAX_FILE_SIZE와 별개
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav'];
 
-// "UP-" + YYYYMMDDHHmmss + "-" + 4자리 랜덤 — 대외 상담코드와 형식으로 구분(약관업로드의 policy_타임스탬프와 동일 원칙)
-function generateConsultationCode(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const stamp =
-    String(now.getFullYear()) +
-    pad(now.getMonth() + 1) +
-    pad(now.getDate()) +
-    pad(now.getHours()) +
-    pad(now.getMinutes()) +
-    pad(now.getSeconds());
-  const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-  return `UP-${stamp}-${rand}`;
+// "CS-" + YYYYMMDD + "-" + HHmm — 시드 더미(scripts/seed.ts)와 동일 형식으로 통일.
+// 폼에 입력된 consulted_at(상담일시) 기반이라 같은 분에 두 건을 올리면 충돌한다 —
+// 이 경우는 g단계의 기존 409 처리가 그대로 잡는다(예전엔 랜덤 접미사라 충돌이
+// 이론상만 존재했지만, 이제는 실제로 발생할 수 있는 정상 케이스가 됨).
+function generateConsultationCode(consultedAt: string): string {
+  const m = consultedAt.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+  if (!m) throw new Error('consultedAt 형식 불일치 — 코드 생성 불가');
+  const [, yyyy, mm, dd, hh, mi] = m;
+  return `CS-${yyyy}${mm}${dd}-${hh}${mi}`;
 }
 
 // datetime-local(<input type="datetime-local">) 값 "YYYY-MM-DDTHH:mm"을 그대로
@@ -136,8 +132,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // g. 상담코드 중복 사전조회 (서버 생성값이라 충돌 극히 희박 — DB UNIQUE가 최종 안전망)
-  const consultationCode = generateConsultationCode();
+  // g. 상담코드 중복 사전조회 — consulted_at 기반이라 같은 분에 중복 업로드하면
+  //    실제로 충돌할 수 있음(DB UNIQUE가 최종 안전망, 여기 조회는 친절한 메시지용)
+  const consultationCode = generateConsultationCode(consultedAt);
   const dup = await findConsultation(consultationCode);
   if (dup) {
     return NextResponse.json(
