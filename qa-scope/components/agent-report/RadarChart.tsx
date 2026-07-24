@@ -45,7 +45,7 @@ export default function RadarChart({
       ...(hasTeam
         ? [
             {
-              label: '팀 평균(%)',
+              label: '동료 평균(%)',
               data: domainRates.map((d) => d.team_rate),
               backgroundColor: 'rgba(183, 178, 160, 0.10)',
               borderColor: '#b7b2a0',
