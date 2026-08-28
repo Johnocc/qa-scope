@@ -7,8 +7,11 @@
 > 모든 데이터는 가상입니다. 자유롭게 조작하셔도 됩니다.<br>
 > *(무료 티어 배포로 첫 접속 시 로딩이 지연될 수 있습니다)*
 
-![채점 결과 목록](docs/images/screen1-list.png)
-
+![채점 결과 목록](qa-scope/docs/images/screen1-list.png)
+![채점 상세 — 음성 재생과 항목별 점수](qa-scope/docs/images/screen2-detail.png)
+![채점 상세 — 검수 화면](qa-scope/docs/images/screen2-review.png)
+![상담사별 대시보드](qa-scope/docs/images/screen3-dashboard.png)
+![개인 평가 리포트](qa-scope/docs/images/screen4-report.png)
 ---
 
 ## 📌 프로젝트 소개
